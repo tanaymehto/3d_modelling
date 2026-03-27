@@ -90,7 +90,17 @@ async function toMeshyImageInput(imageUrl: string): Promise<string> {
     return trimmed;
   }
 
-  const response = await fetch(trimmed);
+  // Convert relative URLs to absolute by prepending AUTH_URL
+  let fetchUrl = trimmed;
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+    const baseUrl = process.env.AUTH_URL;
+    if (!baseUrl) {
+      throw new Error("AUTH_URL environment variable required for image fetching");
+    }
+    fetchUrl = new URL(trimmed, baseUrl).toString();
+  }
+
+  const response = await fetch(fetchUrl);
   if (!response.ok) {
     throw new Error(`Unable to fetch input image for Meshy: ${response.status} ${response.statusText}`);
   }
