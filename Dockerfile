@@ -5,9 +5,7 @@ RUN npm ci
 
 FROM node:20-alpine AS builder
 WORKDIR /app
-ARG AUTH_SECRET
 ENV DATABASE_URL="file:./prisma/dev.db"
-ENV AUTH_SECRET=$AUTH_SECRET
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
@@ -18,7 +16,6 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL="file:./prisma/dev.db"
 
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
