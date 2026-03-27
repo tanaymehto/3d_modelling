@@ -1,7 +1,12 @@
 import { auth } from "@/lib/auth";
 import { generate3DModel } from "@/lib/ai/model-3d-generator";
-import { persistRemoteAsset } from "@/lib/asset-storage";
 import { db } from "@/lib/db";
+
+function toProxyAssetUrl(sourceUrl: string | undefined): string | undefined {
+  if (!sourceUrl) return undefined;
+  if (sourceUrl.startsWith("/") || sourceUrl.startsWith("data:")) return sourceUrl;
+  return `/api/assets?url=${encodeURIComponent(sourceUrl)}`;
+}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -47,34 +52,19 @@ export async function POST(req: Request) {
 
   try {
     const result = await generate3DModel({ prompt, imageUrl });
-    const savedModelUrl = await persistRemoteAsset(result.modelUrl, "models", "glb").catch((error) => {
-      console.warn("[3d] model persist failed, using remote URL", error);
-      return result.modelUrl;
-    });
-    const saveCadAsset = async (sourceUrl: string | undefined, extension: "obj" | "fbx" | "stl") => {
-      if (!sourceUrl) return undefined;
-      return persistRemoteAsset(sourceUrl, "models", extension).catch((error) => {
-        console.warn(`[3d] ${extension} persist failed, using remote URL`, error);
-        return sourceUrl;
-      });
-    };
+    const savedModelUrl = toProxyAssetUrl(result.modelUrl) ?? result.modelUrl;
 
     const cadDownloads = {
       glb: savedModelUrl,
-      obj: await saveCadAsset(result.cadDownloads?.obj, "obj"),
-      fbx: await saveCadAsset(result.cadDownloads?.fbx, "fbx"),
-      stl: await saveCadAsset(result.cadDownloads?.stl, "stl"),
+      obj: toProxyAssetUrl(result.cadDownloads?.obj),
+      fbx: toProxyAssetUrl(result.cadDownloads?.fbx),
+      stl: toProxyAssetUrl(result.cadDownloads?.stl),
     };
     const cadDownloadsJson = Object.fromEntries(
       Object.entries(cadDownloads).filter(([, value]) => typeof value === "string" && value.length > 0),
     );
 
-    const savedPreviewUrl = result.previewUrl
-      ? await persistRemoteAsset(result.previewUrl, "previews", "mp4").catch((error) => {
-          console.warn("[3d] preview persist failed, using remote URL", error);
-          return result.previewUrl;
-        })
-      : undefined;
+    const savedPreviewUrl = toProxyAssetUrl(result.previewUrl);
 
     await db.generatedAsset.create({
       data: {
