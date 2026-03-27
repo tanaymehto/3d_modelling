@@ -82,6 +82,7 @@ async function toMeshyImageInput(imageUrl: string): Promise<string> {
     throw new Error("Missing input image for Meshy.");
   }
 
+  // Already a data URI - validate and return
   if (trimmed.startsWith("data:")) {
     const mimeType = parseDataUriMimeType(trimmed);
     if (!isMeshySupportedMimeType(mimeType)) {
@@ -90,28 +91,43 @@ async function toMeshyImageInput(imageUrl: string): Promise<string> {
     return trimmed;
   }
 
-  // Convert relative URLs to absolute by prepending AUTH_URL
+  // Try to fetch as absolute URL first, then relative
   let fetchUrl = trimmed;
-  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
-    const baseUrl = process.env.AUTH_URL;
-    if (!baseUrl) {
-      throw new Error("AUTH_URL environment variable required for image fetching");
+  const baseUrl = process.env.AUTH_URL?.trim();
+  
+  if (trimmed.startsWith("/")) {
+    // Relative path - add base URL if available
+    if (baseUrl) {
+      fetchUrl = new URL(trimmed, baseUrl).toString();
+    } else {
+      // Try localhost as fallback for local dev
+      fetchUrl = `http://localhost:3000${trimmed}`;
     }
-    fetchUrl = new URL(trimmed, baseUrl).toString();
   }
 
-  const response = await fetch(fetchUrl);
-  if (!response.ok) {
-    throw new Error(`Unable to fetch input image for Meshy: ${response.status} ${response.statusText}`);
-  }
+  try {
+    const response = await fetch(fetchUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-  const mimeType = String(response.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() || "";
-  if (!isMeshySupportedMimeType(mimeType)) {
-    throw new Error("Meshy supports only PNG/JPEG images. Please upload PNG or JPG.");
-  }
+    const mimeType = String(response.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() || "";
+    if (!isMeshySupportedMimeType(mimeType)) {
+      throw new Error("Meshy supports only PNG/JPEG images. Please upload PNG or JPG.");
+    }
 
-  const buffer = Buffer.from(await response.arrayBuffer());
-  return `data:${mimeType};base64,${buffer.toString("base64")}`;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return `data:${mimeType};base64,${buffer.toString("base64")}`;
+  } catch (fetchErr) {
+    // If fetch fails on relative URL, give helpful error
+    if (trimmed.startsWith("/")) {
+      const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      throw new Error(
+        `Unable to fetch image. Make sure it was uploaded successfully. (${errMsg})`
+      );
+    }
+    throw fetchErr;
+  }
 }
 
 async function generateWithMeshy(imageUrl: string, prompt?: string): Promise<Model3DOutput> {

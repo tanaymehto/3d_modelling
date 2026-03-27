@@ -37,5 +37,12 @@ export async function POST(req: Request) {
   await mkdir(outputDir, { recursive: true });
   await writeFile(path.join(outputDir, filename), buffer);
 
-  return Response.json({ imageUrl: `/generated/images/${filename}` });
+  // Always return base64 data URI as primary, with fallback file path
+  const base64 = buffer.toString("base64");
+  const dataUri = `data:${file.type};base64,${base64}`;
+
+  return Response.json({ 
+    imageUrl: dataUri,
+    fallbackUrl: `/generated/images/${filename}`
+  });
 }
