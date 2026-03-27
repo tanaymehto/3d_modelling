@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["next-auth", "@auth/core", "bcryptjs"],
+  /* config options here */
 };
 
 export default nextConfig;
