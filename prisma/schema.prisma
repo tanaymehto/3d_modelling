@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum GenerationType {
+  IMAGE
+  MODEL_3D
+}
+
+enum GenerationStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum AssetType {
+  IMAGE
+  MODEL_GLB
+  MODEL_STL
+  REFERENCE
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String?
+  email        String      @unique
+  passwordHash String
+  image        String?
+  imageCredits Int         @default(3)
+  modelCredits Int         @default(1)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  workspaces   Workspace[]
+}
+
+model Workspace {
+  id        String    @id @default(cuid())
+  name      String
+  isPrivate Boolean   @default(true)
+  ownerId   String
+  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  projects  Project[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Project {
+  id          String       @id @default(cuid())
+  name        String
+  workspaceId String
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  generations Generation[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Generation {
+  id         String           @id @default(cuid())
+  projectId  String
+  project    Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  prompt     String
+  type       GenerationType
+  status     GenerationStatus @default(PENDING)
+  metadata   Json?
+  assets     GeneratedAsset[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+model GeneratedAsset {
+  id           String      @id @default(cuid())
+  generationId String
+  generation   Generation  @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  filePath     String
+  fileType     AssetType
+  liked        Boolean?
+  metadata     Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
