@@ -117,6 +117,25 @@ export function DashboardShell({
         if (active) setAutodeskConnected(false);
       });
 
+    // Handle auto-opening AutoCAD if returning from auth
+    if (typeof window !== "undefined" && window.location.search.includes("autodesk=connected")) {
+      const pendingStr = sessionStorage.getItem("pendingAutoCAD");
+      if (pendingStr) {
+        sessionStorage.removeItem("pendingAutoCAD");
+        try {
+          const pending = JSON.parse(pendingStr);
+          if (pending?.url && pending?.extension) {
+            triggerBrowserDownload(pending.url, `zennah-export.${pending.extension}`);
+            window.open("https://web.autocad.com", "_blank", "noopener,noreferrer");
+            showToast(`Downloaded ${pending.extension.toUpperCase()}. AutoCAD Web is opening now.`);
+
+            // Cleanup URL
+            window.history.replaceState({}, document.title, "/dashboard");
+          }
+        } catch (e) { }
+      }
+    }
+
     return () => {
       active = false;
     };
@@ -138,20 +157,14 @@ export function DashboardShell({
   }
 
   function handleOpenInAutoCAD(cad: Message["cadDownloads"], fallbackModelUrl: string) {
+    const preferred = cad?.stl || cad?.obj || cad?.fbx || cad?.glb || fallbackModelUrl;
+    const extension = cad?.stl ? "stl" : cad?.obj ? "obj" : cad?.fbx ? "fbx" : "glb";
+
     if (!autodeskConnected) {
+      sessionStorage.setItem("pendingAutoCAD", JSON.stringify({ url: preferred, extension }));
       window.location.href = "/api/autodesk/login";
       return;
     }
-
-    // Prefer STL for best AutoCAD compatibility, then OBJ, FBX, and finally GLB.
-    const preferred = cad?.stl || cad?.obj || cad?.fbx || cad?.glb || fallbackModelUrl;
-    const extension = cad?.stl
-      ? "stl"
-      : cad?.obj
-        ? "obj"
-        : cad?.fbx
-          ? "fbx"
-          : "glb";
 
     triggerBrowserDownload(preferred, `zennah-export.${extension}`);
     window.open("https://web.autocad.com", "_blank", "noopener,noreferrer");
