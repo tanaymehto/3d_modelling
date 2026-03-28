@@ -197,17 +197,17 @@ export function DashboardShell({
         console.warn("Upload failed:", data.error);
         showToast(`Failed to push automatically. Initializing local download...`);
         triggerBrowserDownload(preferred, `zennah-export.${extension}`);
-        if (newTab) newTab.location.href = "https://web.autocad.com/";
+        if (newTab) newTab.location.href = "https://drive.autodesk.com/";
         return;
       }
 
       showToast(`Pushed ${data.filename} to Autodesk!`);
-      if (newTab) newTab.location.href = "https://web.autocad.com/";
+      if (newTab) newTab.location.href = "https://drive.autodesk.com/";
     } catch (e: any) {
       console.error(e);
       showToast(`Failed to push automatically. Downloading locally instead.`);
       triggerBrowserDownload(preferred, `zennah-export.${extension}`);
-      if (newTab) newTab.location.href = "https://web.autocad.com/";
+      if (newTab) newTab.location.href = "https://drive.autodesk.com/";
     }
   }
 
@@ -556,7 +556,7 @@ export function DashboardShell({
                           onClick={() => handleOpenInAutoCAD(msg.cadDownloads, msg.modelUrl!)}
                           className="rounded-md bg-emerald-500/25 px-3 py-1 text-xs text-emerald-200 hover:bg-emerald-500/40"
                         >
-                          {autodeskConnected ? "Open in AutoCAD Web" : "Connect Autodesk"}
+                          {autodeskConnected ? "Open Autodesk Drive" : "Connect Autodesk"}
                         </button>
                       </div>
                     </div>
