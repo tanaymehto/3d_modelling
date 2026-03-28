@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ImagePlus, Loader2, Minus, PanelLeft, Plus, Send } from "lucide-react";
 import { GLBViewer } from "@/components/glb-viewer";
 
@@ -103,7 +103,24 @@ export function DashboardShell({
   const [viewingGlb, setViewingGlb] = useState<string | null>(null);
   const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [autodeskConnected, setAutodeskConnected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/autodesk/status", { credentials: "include" })
+      .then((response) => response.ok ? response.json() : { connected: false })
+      .then((data) => {
+        if (active) setAutodeskConnected(Boolean(data?.connected));
+      })
+      .catch(() => {
+        if (active) setAutodeskConnected(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -121,6 +138,11 @@ export function DashboardShell({
   }
 
   function handleOpenInAutoCAD(cad: Message["cadDownloads"], fallbackModelUrl: string) {
+    if (!autodeskConnected) {
+      window.location.href = "/api/autodesk/login";
+      return;
+    }
+
     // Prefer STL for best AutoCAD compatibility, then OBJ, FBX, and finally GLB.
     const preferred = cad?.stl || cad?.obj || cad?.fbx || cad?.glb || fallbackModelUrl;
     const extension = cad?.stl
@@ -484,7 +506,7 @@ export function DashboardShell({
                           onClick={() => handleOpenInAutoCAD(msg.cadDownloads, msg.modelUrl!)}
                           className="rounded-md bg-emerald-500/25 px-3 py-1 text-xs text-emerald-200 hover:bg-emerald-500/40"
                         >
-                          Open in AutoCAD Web
+                          {autodeskConnected ? "Open in AutoCAD Web" : "Connect Autodesk"}
                         </button>
                       </div>
                     </div>
