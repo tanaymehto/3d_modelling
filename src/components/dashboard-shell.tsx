@@ -549,15 +549,15 @@ export function DashboardShell({
                 <p className="max-w-[400px] text-sm text-white/40 leading-relaxed shadow-sm">Upload a sketch or write a prompt below to generate high-fidelity concepts and ready-to-use 3D models.</p>
 
                 <div className="mt-12 w-full max-w-2xl grid grid-cols-2 gap-4 text-left">
-                  <button onClick={() => setPrompt("Minimalist titanium chair, elegant lines")} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#18181b] p-6 transition hover:border-white/15 hover:bg-[#1c1c20] hover:scale-[1.02] shadow-xl">
+                  <button onClick={() => setPrompt("Ornate 18k gold necklace with emerald center stone")} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#18181b] p-6 transition hover:border-white/15 hover:bg-[#1c1c20] hover:scale-[1.02] shadow-xl">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500" />
-                    <span className="mb-3 block text-2xl drop-shadow-md">🪑</span>
-                    <span className="block text-sm font-medium text-white/80 group-hover:text-white transition">Minimalist titanium chair, elegant lines</span>
+                    <span className="mb-3 block text-2xl drop-shadow-md">✨</span>
+                    <span className="block text-sm font-medium text-white/80 group-hover:text-white transition">Ornate 18k gold necklace with emerald center stone</span>
                   </button>
-                  <button onClick={() => setPrompt("Futuristic matte black headphones with subtle LED")} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#18181b] p-6 transition hover:border-white/15 hover:bg-[#1c1c20] hover:scale-[1.02] shadow-xl">
+                  <button onClick={() => setPrompt("Minimalist platinum engagement ring with a round diamond")} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#18181b] p-6 transition hover:border-white/15 hover:bg-[#1c1c20] hover:scale-[1.02] shadow-xl">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent opacity-0 group-hover:opacity-100 transition duration-500" />
-                    <span className="mb-3 block text-2xl drop-shadow-md">🎧</span>
-                    <span className="block text-sm font-medium text-white/80 group-hover:text-white transition">Futuristic matte black headphones with subtle LED</span>
+                    <span className="mb-3 block text-2xl drop-shadow-md">💍</span>
+                    <span className="block text-sm font-medium text-white/80 group-hover:text-white transition">Minimalist platinum engagement ring with a round diamond</span>
                   </button>
                 </div>
               </div>
