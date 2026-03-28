@@ -40,21 +40,21 @@ function buildVariants(prompt: string, mode: "design" | "multiview"): string[] {
  * generic jewelry photography language that overrides the reference content.
  */
 function buildReferenceVariants(userPrompt: string): string[] {
-  const desc = userPrompt.trim();
+  const desc = userPrompt.trim() || "vague idea, enhance to realistic";
   const core = [
     `Study the attached jewelry sketch/reference image very carefully.`,
-    `Create a photorealistic product photograph of this EXACT same jewelry piece described as: "${desc}".`,
+    `Create a breathtaking, ultra-luxury photorealistic product photograph of this EXACT jewelry piece. User notes: "${desc}".`,
     `CRITICAL RULES:`,
-    `1) Preserve the exact jewelry TYPE — if it is a necklace output a necklace, if a ring output a ring, if earrings output earrings.`,
-    `2) Preserve the exact shape, silhouette, design elements, gemstone placement, metalwork details, and proportions from the reference.`,
-    `3) Only improve visual quality to photorealistic while keeping the design identical.`,
-    `4) No humans, no body parts, no hands, no mannequins — isolated product shot only.`,
+    `1) GEOMETRY PRESERVATION: Preserve the EXACT shape, silhouette, structural layout, gemstone placement, and metalwork proportions from the reference drawing.`,
+    `2) AUTOMATIC MATERIAL INFERENCE: Analyze the sketch's coloring and shading. Intelligently upgrade them into ultra-realistic luxury materials (e.g., green shading = flawless emeralds, grey/silver tones = polished platinum/white gold, yellow tones = 18k solid gold, white/clear shading = VVS diamonds).`,
+    `3) MASTER JEWELER LOGIC: Even if the user prompt is vague like "enhance", you must act as a master CAD jeweler and automatically assign the most logical, high-end materials based on the visual hints in the sketch.`,
+    `4) OUTPUT SPECS: No humans, no neck lines, no mannequins, no text, no body parts. Clean isolated product shot only.`,
   ].join(" ");
 
   return [
-    `${core} Soft neutral velvet surface, studio three-point lighting, ultra-sharp focus.`,
-    `${core} Clean white gradient background, overhead flat-lay composition, crisp shadows.`,
-    `${core} Macro lens close-up, soft bokeh background, warm luxury catalog lighting, photorealistic detail.`,
+    `${core} Rendered resting flat on a soft neutral velvet surface, studio three-point lighting, ultra-sharp macro focus.`,
+    `${core} Floating on a clean white gallery gradient background, overhead flat-lay composition, crisp dramatic drop shadows.`,
+    `${core} Macro lens close-up, soft bokeh depth of field, warm luxury catalog lighting, photorealistic gemstone caustics and metal reflections.`,
   ];
 }
 
