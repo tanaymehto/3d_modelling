@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ChevronDown, ImagePlus, Loader2, Minus, Plus, Send } from "lucide-react";
+import { ChevronDown, ImagePlus, Loader2, Minus, PanelLeft, Plus, Send } from "lucide-react";
 import { GLBViewer } from "@/components/glb-viewer";
 
 function ImageCard({ src, onView3D, label, disabled }: { src: string; onView3D: () => void; label?: string; disabled?: boolean }) {
@@ -102,6 +102,7 @@ export function DashboardShell({
   const [toast, setToast] = useState<string | null>(null);
   const [viewingGlb, setViewingGlb] = useState<string | null>(null);
   const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   function showToast(msg: string) {
@@ -120,18 +121,21 @@ export function DashboardShell({
   }
 
   function handleOpenInAutoCAD(cad: Message["cadDownloads"], fallbackModelUrl: string) {
-    const preferred = cad?.obj || cad?.fbx || cad?.stl || cad?.glb || fallbackModelUrl;
-    const extension = cad?.obj
-      ? "obj"
-      : cad?.fbx
-        ? "fbx"
-        : cad?.stl
-          ? "stl"
+    // Prefer STL for best AutoCAD compatibility, then OBJ, FBX, and finally GLB.
+    const preferred = cad?.stl || cad?.obj || cad?.fbx || cad?.glb || fallbackModelUrl;
+    const extension = cad?.stl
+      ? "stl"
+      : cad?.obj
+        ? "obj"
+        : cad?.fbx
+          ? "fbx"
           : "glb";
 
     triggerBrowserDownload(preferred, `zennah-export.${extension}`);
     window.open("https://web.autocad.com", "_blank", "noopener,noreferrer");
-    showToast(`Downloaded ${extension.toUpperCase()} for this project. Import it in AutoCAD Web.`);
+    showToast(
+      `Downloaded ${extension.toUpperCase()}. AutoCAD Web is opening now - use Import to add the file.`,
+    );
   }
 
   const allProjects = useMemo(() => workspaces.flatMap((w) => w.projects), [workspaces]);
@@ -303,7 +307,7 @@ export function DashboardShell({
           {toast}
         </div>
       ) : null}
-      <aside className="w-64 border-r border-white/10 p-4">
+      <aside className={`${sidebarCollapsed ? "w-0 overflow-hidden border-r-0 p-0" : "w-64 border-r border-white/10 p-4"} transition-all duration-200`}>
         <div className="mb-6 text-lg font-semibold">Zennah</div>
         <div className="mb-4 text-xs text-white/60">Workspaces</div>
         <div className="space-y-3 overflow-y-auto pr-1">
@@ -332,7 +336,17 @@ export function DashboardShell({
       <main className="flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div>
-            <div className="text-sm text-white/80">Welcome, {userName}</div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed((v) => !v)}
+                className="rounded-md border border-white/20 p-1.5 text-white/70 hover:bg-white/10"
+                title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+              >
+                <PanelLeft size={14} />
+              </button>
+              <div className="text-sm text-white/80">Welcome, {userName}</div>
+            </div>
             <div className="text-xs text-white/50">{allProjects.length} projects</div>
           </div>
           <div className="rounded-full border border-white/20 px-4 py-2 text-sm">
