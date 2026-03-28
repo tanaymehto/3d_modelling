@@ -40,21 +40,29 @@ function buildVariants(prompt: string, mode: "design" | "multiview"): string[] {
  * generic jewelry photography language that overrides the reference content.
  */
 function buildReferenceVariants(userPrompt: string): string[] {
-  const desc = userPrompt.trim() || "vague idea, enhance to realistic";
+  const desc = userPrompt.trim() || "enhance to photorealistic";
   const core = [
-    `Study the attached jewelry sketch/reference image very carefully.`,
-    `Create a breathtaking, ultra-luxury photorealistic product photograph of this EXACT jewelry piece. User notes: "${desc}".`,
+    `STEP 1 — IDENTIFY: Look at the attached sketch. Identify the EXACT jewelry type`,
+    `(e.g. necklace, ring, bracelet, earring, brooch, bangle). You MUST reproduce`,
+    `that exact jewelry type — never substitute a different type.`,
+    `STEP 2 — RENDER: Create a breathtaking ultra-luxury photorealistic product`,
+    `photograph of THIS EXACT piece. User notes: "${desc}".`,
     `CRITICAL RULES:`,
-    `1) GEOMETRY PRESERVATION: Preserve the EXACT shape, silhouette, structural layout, gemstone placement, and metalwork proportions from the reference drawing.`,
-    `2) AUTOMATIC MATERIAL INFERENCE: Analyze the sketch's coloring and shading. Intelligently upgrade them into ultra-realistic luxury materials (e.g., green shading = flawless emeralds, grey/silver tones = polished platinum/white gold, yellow tones = 18k solid gold, white/clear shading = VVS diamonds).`,
-    `3) MASTER JEWELER LOGIC: Even if the user prompt is vague like "enhance", you must act as a master CAD jeweler and automatically assign the most logical, high-end materials based on the visual hints in the sketch.`,
-    `4) OUTPUT SPECS: No humans, no neck lines, no mannequins, no text, no body parts. Clean isolated product shot only.`,
+    `1) JEWELRY TYPE LOCK: If the sketch shows a necklace, output a necklace.`,
+    `If it shows a ring, output a ring. Never change the jewelry category.`,
+    `2) GEOMETRY PRESERVATION: Preserve the EXACT shape, silhouette, structural`,
+    `layout, gemstone placement, and metalwork proportions from the sketch.`,
+    `Do not simplify, omit, or invent structural elements.`,
+    `3) MATERIAL INFERENCE: Upgrade sketch shading to luxury materials`,
+    `(green tones → flawless emeralds, grey/silver → polished platinum or white gold,`,
+    `yellow → 18k solid gold, white/clear → VVS diamonds).`,
+    `4) OUTPUT: No humans, no neck lines, no mannequins, no text. Clean isolated product shot only.`,
   ].join(" ");
 
   return [
-    `${core} Rendered resting flat on a soft neutral velvet surface, studio three-point lighting, ultra-sharp macro focus.`,
-    `${core} Floating on a clean white gallery gradient background, overhead flat-lay composition, crisp dramatic drop shadows.`,
-    `${core} Macro lens close-up, soft bokeh depth of field, warm luxury catalog lighting, photorealistic gemstone caustics and metal reflections.`,
+    `${core} Rendered on a soft neutral velvet surface, studio three-point lighting, ultra-sharp macro focus.`,
+    `${core} Floating on a clean white gallery gradient background, overhead flat-lay composition, crisp drop shadows.`,
+    `${core} Macro lens close-up, warm luxury catalog lighting, photorealistic gemstone caustics and metal reflections.`,
   ];
 }
 
@@ -173,7 +181,10 @@ async function generateWithGemini(
     // preservation-focused instructions — no need to append extra text.
     const textPrompt = variant;
 
-    const parts: Array<Record<string, unknown>> = [{ text: textPrompt }];
+    // Image MUST come first — Gemini's multimodal attention anchors to the
+    // first part, so putting the sketch before the text ensures geometry is
+    // read before any stylistic instructions can override it.
+    const parts: Array<Record<string, unknown>> = [];
     if (inlineReference?.data) {
       parts.push({
         inlineData: {
@@ -182,6 +193,7 @@ async function generateWithGemini(
         },
       });
     }
+    parts.push({ text: textPrompt });
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`,
