@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ImagePlus, Loader2, Minus, PanelLeft, Plus, Send } from "lucide-react";
 import { GLBViewer } from "@/components/glb-viewer";
 
-function ImageCard({ src, onView3D, label, disabled }: { src: string; onView3D: () => void; label?: string; disabled?: boolean }) {
+function ImageCard({ src, onView3D, onViewImage, label, disabled }: { src: string; onView3D: () => void; onViewImage: () => void; label?: string; disabled?: boolean }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
@@ -18,18 +18,21 @@ function ImageCard({ src, onView3D, label, disabled }: { src: string; onView3D: 
   }, [src]);
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-[24px] border border-white/5 bg-[#18181b] p-3 h-[380px] transition hover:border-white/10 shadow-lg">
+    <article className="group relative flex flex-col overflow-hidden rounded-[24px] border border-white/5 bg-[#18181b] p-3 h-[380px] transition hover:border-white/10 shadow-lg cursor-pointer" onClick={(e) => {
+      if ((e.target as HTMLElement).closest('button')) return;
+      onViewImage();
+    }}>
       <div className="absolute left-6 top-6 z-10 flex items-center gap-1.5 opacity-0 transition group-hover:opacity-100">
         <div className="flex items-center rounded-full bg-black/40 p-1 backdrop-blur shadow-sm">
           <button className="rounded-full p-1.5 text-white/60 hover:bg-white/20 hover:text-white transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></button>
           <button className="rounded-full p-1.5 text-white/60 hover:bg-white/20 hover:text-white transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg></button>
         </div>
-        <button onClick={onView3D} disabled={disabled} className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40 backdrop-blur transition disabled:opacity-50">
+        <button onClick={(e) => { e.stopPropagation(); onView3D(); }} disabled={disabled} className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40 backdrop-blur transition disabled:opacity-50" title="Direct to 3D">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"></path><path d="m14 7 3 3"></path><path d="M5 6v4"></path><path d="M19 14v4"></path><path d="M10 2v2"></path><path d="M7 8H3"></path><path d="M21 16h-4"></path><path d="M11 3H9"></path></svg>
         </button>
       </div>
 
-      <button onClick={() => setIsChecked(!isChecked)} className={`absolute right-6 top-6 z-10 flex h-6 w-6 items-center justify-center rounded border opacity-0 transition group-hover:opacity-100 ${isChecked ? "border-[#4a3dff] bg-[#4a3dff] text-white opacity-100" : "border-white/20 bg-black/20 hover:bg-white/20"}`}>
+      <button onClick={(e) => { e.stopPropagation(); setIsChecked(!isChecked); }} className={`absolute right-6 top-6 z-10 flex h-6 w-6 items-center justify-center rounded border opacity-0 transition group-hover:opacity-100 ${isChecked ? "border-[#4a3dff] bg-[#4a3dff] text-white opacity-100" : "border-white/20 bg-black/20 hover:bg-white/20"}`}>
         {isChecked && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
       </button>
 
@@ -45,11 +48,10 @@ function ImageCard({ src, onView3D, label, disabled }: { src: string; onView3D: 
         ) : (
           <img ref={imgRef} src={src} alt="Generated" className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${loaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLoaded(true)} onError={() => setErrored(true)} />
         )}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity bg-black/10 group-hover:opacity-100">
-          <button onClick={onView3D} disabled={disabled} className="flex flex-col items-center gap-1 rounded p-4 text-white/70 hover:text-white transition transform translate-y-2 group-hover:translate-y-0">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 2v6h6"></path><path d="M3 13a9 9 0 1 0 3-7.7L3 8"></path></svg>
-            <span className="text-[10px] font-medium tracking-wide">Retry to 3D</span>
-          </button>
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity bg-black/20 group-hover:opacity-100 pointer-events-none">
+          <div className="rounded-full bg-black/50 p-3 text-white backdrop-blur transform scale-90 group-hover:scale-100 transition">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
+          </div>
         </div>
       </div>
 
@@ -123,6 +125,7 @@ export function DashboardShell({
   const [credits, setCredits] = useState({ image: imageCredits, model: modelCredits });
   const [toast, setToast] = useState<string | null>(null);
   const [viewingGlb, setViewingGlb] = useState<string | null>(null);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [autodeskConnected, setAutodeskConnected] = useState(false);
@@ -374,8 +377,19 @@ export function DashboardShell({
   return (
     <div className="flex h-screen bg-[#111114] text-[#ededed]">
       {viewingGlb ? <GLBViewer url={viewingGlb} onClose={() => setViewingGlb(null)} /> : null}
+
+      {/* Lightbox for large image view */}
+      {viewingImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setViewingImage(null)}>
+          <img src={viewingImage} alt="Expanded view" className="max-h-[90vh] max-w-[90vw] rounded-2xl object-contain shadow-2xl" onClick={(e) => e.stopPropagation()} />
+          <button className="absolute top-6 right-6 rounded-full bg-white/10 p-2 text-white/80 hover:bg-white/20 hover:text-white transition" onClick={() => setViewingImage(null)}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      )}
+
       <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ""; if (!file) return; void handleUploadSketch(file); }} />
-      {toast ? <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-full border border-red-500/30 bg-red-500/10 px-6 py-2 text-xs font-medium text-red-200 shadow-xl backdrop-blur-md">{toast}</div> : null}
+      {toast ? <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/10 bg-[#1e1e24] px-6 py-2 text-xs font-medium text-white shadow-xl backdrop-blur-md">{toast}</div> : null}
 
       <aside className={`${sidebarCollapsed ? "w-0 overflow-hidden border-r-0 p-0" : "w-64 border-r border-white/10 flex flex-col"} transition-all duration-200`}>
         {/* Top Logo */}
@@ -436,17 +450,25 @@ export function DashboardShell({
         <div className="border-t border-white/10 p-4">
           <div className="mb-2 text-[11px] font-medium text-white/40 px-2 uppercase tracking-wider">Account</div>
           <div className="space-y-0.5">
-            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-xs text-white/60 hover:bg-white/5 hover:text-white">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-xs text-white/60 hover:bg-white/5 hover:text-white transition">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
               Profile
             </button>
-            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-xs text-white/60 hover:bg-white/5 hover:text-white">
+            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-xs text-white/60 hover:bg-white/5 hover:text-white transition">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
               Billing
             </button>
-            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-xs text-white/60 hover:bg-white/5 hover:text-white">
+            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-xs text-white/60 hover:bg-white/5 hover:text-white transition">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               Collaboration
+            </button>
+            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-xs text-white/60 hover:bg-white/5 hover:text-white transition">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"></path><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"></path><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+              Settings
+            </button>
+            <button className="mt-2 flex w-full items-center gap-3 rounded-lg border-t border-white/5 pt-3 px-2 text-xs text-red-400/60 hover:bg-white/5 hover:text-red-400 transition">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              Log out
             </button>
           </div>
         </div>
@@ -482,32 +504,60 @@ export function DashboardShell({
           <div className="mx-auto max-w-6xl px-8 pt-8 pb-12">
 
             {/* Subheader */}
-            <div className="mb-8 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-[#18181b] px-3 py-1.5 text-[10px] font-bold tracking-wider text-white/60 uppercase">
-                  {(messages.length * 3) + 20} Variations
+            {messages.length > 0 && (
+              <>
+                <div className="mb-8 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-[#18181b] px-3 py-1.5 text-[10px] font-bold tracking-wider text-white/60 uppercase border border-white/5">
+                      {(messages.length * 3) + 20} Variations
+                    </div>
+                    <button className="flex h-7 w-7 items-center justify-center rounded-full bg-[#18181b] border border-white/5 text-white/50 hover:text-white hover:bg-white/10 transition shadow-sm">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-medium text-white/40">Generated recently</span>
+                    <div className="flex items-center gap-1 bg-[#18181b] rounded-lg border border-white/5 p-0.5 shadow-sm">
+                      <button className="rounded px-2 py-1 text-white/70 bg-white/5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></button>
+                      <button className="rounded px-2 py-1 text-white/30 hover:text-white/70 transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+                    </div>
+                  </div>
                 </div>
-                <button className="flex h-7 w-7 items-center justify-center rounded-full bg-[#18181b] text-white/50 hover:text-white hover:bg-white/10 transition">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                </button>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-medium text-white/40">Generated 3 days ago</span>
-                <div className="flex items-center gap-1">
-                  <button className="rounded px-1.5 py-1 text-white/70 bg-white/5"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></button>
-                  <button className="rounded px-1.5 py-1 text-white/30 hover:text-white/70"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
-                </div>
-              </div>
-            </div>
 
-            {/* Timeline divider */}
-            <div className="mb-8 flex items-center gap-4">
-              <div className="rounded-full bg-[#18181b] border border-white/5 px-4 py-1.5 flex items-center gap-2 text-[10px] font-bold tracking-wider text-white/50 uppercase">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                Wednesday
+                {/* Timeline divider */}
+                <div className="mb-8 flex items-center gap-4">
+                  <div className="rounded-full bg-[#18181b] border border-white/5 px-4 py-1.5 flex items-center gap-2 text-[10px] font-bold tracking-wider text-white/50 uppercase shadow-sm">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    Today
+                  </div>
+                  <div className="h-px flex-1 bg-white/5"></div>
+                </div>
+              </>
+            )}
+
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center pt-24 pb-32 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-br from-[#18181b] to-black border border-white/10 shadow-2xl relative overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.1)_0%,_transparent_60%)]" />
+                  <span className="text-4xl text-white/40 drop-shadow-lg scale-110">💎</span>
+                </div>
+                <h3 className="mb-3 text-2xl font-semibold text-white tracking-tight">Design smarter</h3>
+                <p className="max-w-[400px] text-sm text-white/40 leading-relaxed shadow-sm">Upload a sketch or write a prompt below to generate high-fidelity concepts and ready-to-use 3D models.</p>
+
+                <div className="mt-12 w-full max-w-2xl grid grid-cols-2 gap-4 text-left">
+                  <button onClick={() => setPrompt("Minimalist titanium chair, elegant lines")} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#18181b] p-6 transition hover:border-white/15 hover:bg-[#1c1c20] hover:scale-[1.02] shadow-xl">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500" />
+                    <span className="mb-3 block text-2xl drop-shadow-md">🪑</span>
+                    <span className="block text-sm font-medium text-white/80 group-hover:text-white transition">Minimalist titanium chair, elegant lines</span>
+                  </button>
+                  <button onClick={() => setPrompt("Futuristic matte black headphones with subtle LED")} className="group relative overflow-hidden rounded-[24px] border border-white/5 bg-[#18181b] p-6 transition hover:border-white/15 hover:bg-[#1c1c20] hover:scale-[1.02] shadow-xl">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent opacity-0 group-hover:opacity-100 transition duration-500" />
+                    <span className="mb-3 block text-2xl drop-shadow-md">🎧</span>
+                    <span className="block text-sm font-medium text-white/80 group-hover:text-white transition">Futuristic matte black headphones with subtle LED</span>
+                  </button>
+                </div>
               </div>
-              <div className="h-px flex-1 bg-white/5"></div>
-            </div>
+            )}
 
             <div className="space-y-12">
               {messages.map((msg) => (
@@ -561,6 +611,7 @@ export function DashboardShell({
                           src={img}
                           disabled={busy}
                           onView3D={() => handleGenerate3D(img, msg.prompt)}
+                          onViewImage={() => setViewingImage(img)}
                           label={msg.isMultiView ? ["Front", "45° Side", "Top-down"][i] : "flux-1.1-pro"}
                         />
                       ))}
@@ -579,14 +630,22 @@ export function DashboardShell({
                           className="w-full rounded-t-xl"
                         />
                       ) : (
-                        <div className="flex h-48 items-center justify-center text-xs text-white/40">
+                        <div className="flex h-[380px] relative items-center justify-center bg-[#151518]">
+                          <div className="absolute inset-0 z-0">
+                            {/* Abstract stylish 3D background placeholder */}
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.05)_0%,_transparent_60%)]" />
+                            <div className="absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5 opacity-40 animate-[spin_10s_linear_infinite]" />
+                            <div className="absolute top-1/2 left-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5 opacity-20 animate-[spin_7s_linear_infinite_reverse]" />
+                          </div>
                           <button
                             type="button"
                             onClick={() => setViewingGlb(msg.modelUrl!)}
-                            className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-8 py-5 hover:bg-white/10 transition-colors"
+                            className="relative z-10 flex flex-col items-center gap-3 rounded-[32px] border border-white/10 bg-[#1e1e24]/80 px-10 py-6 hover:bg-[#25252b] transition shadow-2xl backdrop-blur-md hover:scale-105"
                           >
-                            <span className="text-2xl">🪐</span>
-                            <span className="text-sm text-white/60">Open 3D Viewer</span>
+                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#18181b] shadow-inner text-emerald-400">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                            </span>
+                            <span className="text-[13px] font-semibold tracking-wide text-white">Open 3D Viewer</span>
                           </button>
                         </div>
                       )}
@@ -664,7 +723,7 @@ export function DashboardShell({
                   onClick={() => {
                     const url = attachedImage.url;
                     setAttachedImage(null);
-                    void handleGenerate3D(url, "ornate jewelry pendant, isolated single object, preserve exact silhouette, high-detail metal and gemstone structure");
+                    void handleGenerate3D(url, prompt || `Generated 3D from ${attachedImage.name}`);
                   }}
                   className="rounded-full bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold tracking-wide text-emerald-300 hover:bg-emerald-500/30 transition ml-2"
                 >
@@ -741,6 +800,6 @@ export function DashboardShell({
           </div>
         </div>
       </main>
-    </div>
+    </div >
   );
 }

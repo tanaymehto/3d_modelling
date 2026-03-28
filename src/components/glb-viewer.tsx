@@ -55,24 +55,30 @@ function Model({ url, materialType }: { url: string; materialType: string }) {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         if (mesh.material) {
-          // If the model comes with a standard material, just override the color & metalness so it looks like jewelry
-          if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((mat) => {
-              if ("color" in mat && "metalness" in mat) {
-                (mat as THREE.MeshStandardMaterial).color.copy(targetColor);
-                (mat as THREE.MeshStandardMaterial).metalness = 1.0;
-                (mat as THREE.MeshStandardMaterial).roughness = 0.2;
-                mat.needsUpdate = true;
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+
+          mats.forEach((mat) => {
+            if ("color" in mat && "metalness" in mat) {
+              const m = mat as THREE.MeshStandardMaterial;
+              // Cache original states first time
+              if (!m.userData.origColor) {
+                m.userData.origColor = m.color.clone();
+                m.userData.origMetalness = m.metalness;
+                m.userData.origRoughness = m.roughness;
               }
-            });
-          } else {
-            if ("color" in mesh.material && "metalness" in mesh.material) {
-              (mesh.material as THREE.MeshStandardMaterial).color.copy(targetColor);
-              (mesh.material as THREE.MeshStandardMaterial).metalness = 1.0;
-              (mesh.material as THREE.MeshStandardMaterial).roughness = 0.2;
-              mesh.material.needsUpdate = true;
+
+              if (materialType === "Original") {
+                m.color.copy(m.userData.origColor);
+                m.metalness = m.userData.origMetalness;
+                m.roughness = m.userData.origRoughness;
+              } else {
+                m.color.copy(targetColor);
+                m.metalness = 1.0;
+                m.roughness = 0.2;
+              }
+              m.needsUpdate = true;
             }
-          }
+          });
         }
       }
     });
@@ -102,9 +108,11 @@ type GLBViewerProps = {
 export function GLBViewer({ url, onClose }: GLBViewerProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const isLegacyMock = useMemo(() => url.startsWith("/sample/"), [url]);
-  const [material, setMaterial] = useState("Gold");
+  const [material, setMaterial] = useState("Original");
+  const [viewMode, setViewMode] = useState<"render" | "materials">("render");
 
   const colors = [
+    { name: "Original", gradient: "conic-gradient(from 90deg, #ff9f43, #ff5252, #341f97, #1dd1a1, #feca57)" },
     { name: "Gold", hex: "#facc15" },
     { name: "Rose Gold", hex: "#e8b0a5" },
     { name: "Silver", hex: "#e5e7eb" },
@@ -130,8 +138,8 @@ export function GLBViewer({ url, onClose }: GLBViewerProps) {
           {/* Top Right Controls & Close */}
           <div className="flex items-center gap-4 pointer-events-auto">
             <div className="flex items-center rounded-full border border-white/10 bg-black/40 p-1 text-xs text-white backdrop-blur-md shadow-lg">
-              <button className="rounded-full px-4 py-1.5 transition hover:bg-white/10">Render</button>
-              <button className="rounded-full bg-white/20 px-4 py-1.5 font-medium shadow-sm">Materials</button>
+              <button onClick={() => { setViewMode("render"); setMaterial("Original"); }} className={`rounded-full px-4 py-1.5 transition ${viewMode === "render" ? "bg-white/20 font-medium" : "hover:bg-white/10"}`}>Original</button>
+              <button onClick={() => setViewMode("materials")} className={`rounded-full px-4 py-1.5 transition ${viewMode === "materials" ? "bg-white/20 font-medium" : "hover:bg-white/10"}`}>Materials</button>
               <button className="rounded-full px-4 py-1.5 transition hover:bg-white/10">Inspect</button>
             </div>
             <button
@@ -150,23 +158,25 @@ export function GLBViewer({ url, onClose }: GLBViewerProps) {
         </div>
 
         {/* Floating Material Picker (Right Side) */}
-        <div className="absolute right-6 top-24 z-10 flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/40 p-4 backdrop-blur-md shadow-xl pointer-events-auto">
-          {colors.map((c) => (
-            <button
-              key={c.name}
-              onClick={() => setMaterial(c.name)}
-              className="group flex flex-col items-center gap-1.5 outline-none"
-            >
-              <div
-                className={`h-10 w-10 shrink-0 rounded-full border-2 transition-all ${material === c.name ? "border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.3)]" : "border-transparent hover:scale-105"}`}
-                style={{ backgroundColor: c.hex }}
-              />
-              <span className={`text-[10px] ${material === c.name ? "text-white font-medium" : "text-white/60"}`}>
-                {c.name}
-              </span>
-            </button>
-          ))}
-        </div>
+        {viewMode === "materials" && (
+          <div className="absolute right-6 top-24 z-10 flex flex-col gap-3 rounded-[20px] border border-white/10 bg-black/40 p-4 backdrop-blur-md shadow-xl pointer-events-auto animate-in slide-in-from-right-4">
+            {colors.map((c) => (
+              <button
+                key={c.name}
+                onClick={() => setMaterial(c.name)}
+                className="group flex flex-col items-center gap-1.5 outline-none"
+              >
+                <div
+                  className={`h-10 w-10 shrink-0 rounded-full border-2 transition-all ${material === c.name ? "border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.3)]" : "border-transparent hover:scale-105"}`}
+                  style={c.gradient ? { background: c.gradient } : { backgroundColor: c.hex }}
+                />
+                <span className={`text-[10px] ${material === c.name ? "text-white font-medium" : "text-white/60"}`}>
+                  {c.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Floating Download Button (Bottom Center) */}
         <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 pointer-events-auto">
