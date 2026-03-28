@@ -34,8 +34,50 @@ class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErro
   }
 }
 
-function Model({ url }: { url: string }) {
+import { useEffect, useState } from "react";
+import * as THREE from "three";
+
+function Model({ url, materialType }: { url: string; materialType: string }) {
   const { scene } = useGLTF(url);
+
+  useEffect(() => {
+    // Map material names to THREE.Color hexes
+    const colors: Record<string, string> = {
+      Gold: "#facc15",
+      "Rose Gold": "#e8b0a5",
+      Silver: "#e5e7eb",
+      Titanium: "#6b7280",
+    };
+
+    const targetColor = new THREE.Color(colors[materialType] || "#ffffff");
+
+    scene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        if (mesh.material) {
+          // If the model comes with a standard material, just override the color & metalness so it looks like jewelry
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach((mat) => {
+              if ("color" in mat && "metalness" in mat) {
+                (mat as THREE.MeshStandardMaterial).color.copy(targetColor);
+                (mat as THREE.MeshStandardMaterial).metalness = 1.0;
+                (mat as THREE.MeshStandardMaterial).roughness = 0.2;
+                mat.needsUpdate = true;
+              }
+            });
+          } else {
+            if ("color" in mesh.material && "metalness" in mesh.material) {
+              (mesh.material as THREE.MeshStandardMaterial).color.copy(targetColor);
+              (mesh.material as THREE.MeshStandardMaterial).metalness = 1.0;
+              (mesh.material as THREE.MeshStandardMaterial).roughness = 0.2;
+              mesh.material.needsUpdate = true;
+            }
+          }
+        }
+      }
+    });
+  }, [scene, materialType]);
+
   return (
     <Center>
       <primitive object={scene} />
@@ -60,41 +102,89 @@ type GLBViewerProps = {
 export function GLBViewer({ url, onClose }: GLBViewerProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const isLegacyMock = useMemo(() => url.startsWith("/sample/"), [url]);
+  const [material, setMaterial] = useState("Gold");
+
+  const colors = [
+    { name: "Gold", hex: "#facc15" },
+    { name: "Rose Gold", hex: "#e8b0a5" },
+    { name: "Silver", hex: "#e5e7eb" },
+    { name: "Titanium", hex: "#6b7280" }
+  ];
 
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#111114]/80 p-4 backdrop-blur-md"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div className="relative flex h-[80vh] w-[90vw] max-w-4xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111114]">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
-          <span className="text-sm text-white/70">3D Model Viewer · drag to rotate · scroll to zoom</span>
-          <div className="flex items-center gap-3">
-            <a
-              href={url}
-              download
-              className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/20"
-            >
-              <Download size={12} />
-              Download GLB
-            </a>
+      <div className="relative flex h-[90vh] w-full max-w-[90vw] overflow-hidden rounded-[2rem] border border-white/5 bg-[#18181b] shadow-2xl">
+
+        {/* Floating Top Bar overlay */}
+        <div className="absolute left-6 right-6 top-6 z-10 flex items-start justify-between pointer-events-none">
+          {/* Top Left Title */}
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-4 py-2 text-sm font-medium text-white backdrop-blur-md pointer-events-auto shadow-lg">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            3D Viewer
+          </div>
+
+          {/* Top Right Controls & Close */}
+          <div className="flex items-center gap-4 pointer-events-auto">
+            <div className="flex items-center rounded-full border border-white/10 bg-black/40 p-1 text-xs text-white backdrop-blur-md shadow-lg">
+              <button className="rounded-full px-4 py-1.5 transition hover:bg-white/10">Render</button>
+              <button className="rounded-full bg-white/20 px-4 py-1.5 font-medium shadow-sm">Materials</button>
+              <button className="rounded-full px-4 py-1.5 transition hover:bg-white/10">Inspect</button>
+            </div>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full p-1.5 hover:bg-white/10"
+              className="flex items-center justify-center rounded-full border border-white/10 bg-black/40 p-2.5 text-white transition hover:bg-white/20 backdrop-blur-md shadow-lg"
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Canvas */}
-        <div className="flex-1">
+        {/* Floating instruction pill (Top Left, under Title) */}
+        <div className="absolute left-6 top-[72px] z-10 rounded-full bg-black/40 px-3 py-1 text-[10px] text-white/70 backdrop-blur-md border border-white/5 pointer-events-none">
+          <span className="font-semibold text-white/90">Ctrl</span> or <span className="font-semibold text-white/90">Right-click</span> + Drag to reposition
+        </div>
+
+        {/* Floating Material Picker (Right Side) */}
+        <div className="absolute right-6 top-24 z-10 flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/40 p-4 backdrop-blur-md shadow-xl pointer-events-auto">
+          {colors.map((c) => (
+            <button
+              key={c.name}
+              onClick={() => setMaterial(c.name)}
+              className="group flex flex-col items-center gap-1.5 outline-none"
+            >
+              <div
+                className={`h-10 w-10 shrink-0 rounded-full border-2 transition-all ${material === c.name ? "border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.3)]" : "border-transparent hover:scale-105"}`}
+                style={{ backgroundColor: c.hex }}
+              />
+              <span className={`text-[10px] ${material === c.name ? "text-white font-medium" : "text-white/60"}`}>
+                {c.name}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Floating Download Button (Bottom Center) */}
+        <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 pointer-events-auto">
+          <a
+            href={url}
+            download
+            className="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-6 py-3 text-sm font-medium text-white backdrop-blur-md shadow-xl transition hover:bg-black/80 hover:scale-105"
+          >
+            <Download size={16} />
+            Download
+          </a>
+        </div>
+
+        {/* Fullscreen Canvas Background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#111114] to-[#1a1a24]">
           {isLegacyMock ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-sm text-white/60">
-              This is a legacy mock 3D entry and the file is missing. Generate 3D again from an image to open the real viewer.
+              This is a legacy mock 3D entry. Generate 3D again from an image to view.
             </div>
           ) : (
             <ViewerErrorBoundary
@@ -104,14 +194,15 @@ export function GLBViewer({ url, onClose }: GLBViewerProps) {
                 </div>
               }
             >
-              <Canvas camera={{ position: [0, 0, 3], fov: 50 }} shadows>
-                <ambientLight intensity={0.5} />
-                <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
+              <Canvas camera={{ position: [0, 0, 3], fov: 45 }} shadows>
+                <ambientLight intensity={0.7} />
+                <directionalLight position={[5, 10, 5]} intensity={1.5} castShadow />
+                <pointLight position={[-5, 5, -5]} intensity={0.5} />
                 <Environment preset="studio" />
                 <Suspense fallback={<Spinner3D />}>
-                  <Model url={url} />
+                  <Model url={url} materialType={material} />
                 </Suspense>
-                <OrbitControls autoRotate autoRotateSpeed={1.5} enablePan={false} />
+                <OrbitControls autoRotate autoRotateSpeed={1.0} enablePan={true} enableZoom={true} makeDefault />
               </Canvas>
             </ViewerErrorBoundary>
           )}
