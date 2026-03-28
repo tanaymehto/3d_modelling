@@ -22,17 +22,14 @@ function ImageCard({ src, onView3D, onViewImage, label, disabled }: { src: strin
       if ((e.target as HTMLElement).closest('button')) return;
       onViewImage();
     }}>
-      <div className="absolute left-6 top-6 z-10 flex items-center gap-1.5 opacity-0 transition group-hover:opacity-100">
+      <div className="absolute left-6 top-6 z-20 flex items-center gap-1.5 opacity-0 transition group-hover:opacity-100">
         <div className="flex items-center rounded-full bg-black/40 p-1 backdrop-blur shadow-sm">
           <button className="rounded-full p-1.5 text-white/60 hover:bg-white/20 hover:text-white transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></button>
           <button className="rounded-full p-1.5 text-white/60 hover:bg-white/20 hover:text-white transition"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg></button>
         </div>
-        <button onClick={(e) => { e.stopPropagation(); onView3D(); }} disabled={disabled} className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40 backdrop-blur transition disabled:opacity-50" title="Direct to 3D">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"></path><path d="m14 7 3 3"></path><path d="M5 6v4"></path><path d="M19 14v4"></path><path d="M10 2v2"></path><path d="M7 8H3"></path><path d="M21 16h-4"></path><path d="M11 3H9"></path></svg>
-        </button>
       </div>
 
-      <button onClick={(e) => { e.stopPropagation(); setIsChecked(!isChecked); }} className={`absolute right-6 top-6 z-10 flex h-6 w-6 items-center justify-center rounded border opacity-0 transition group-hover:opacity-100 ${isChecked ? "border-[#4a3dff] bg-[#4a3dff] text-white opacity-100" : "border-white/20 bg-black/20 hover:bg-white/20"}`}>
+      <button onClick={(e) => { e.stopPropagation(); setIsChecked(!isChecked); }} className={`absolute right-6 top-6 z-20 flex h-6 w-6 items-center justify-center rounded border opacity-0 transition group-hover:opacity-100 ${isChecked ? "border-[#4a3dff] bg-[#4a3dff] text-white opacity-100" : "border-white/20 bg-black/20 hover:bg-white/20"}`}>
         {isChecked && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
       </button>
 
@@ -48,10 +45,17 @@ function ImageCard({ src, onView3D, onViewImage, label, disabled }: { src: strin
         ) : (
           <img ref={imgRef} src={src} alt="Generated" className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${loaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLoaded(true)} onError={() => setErrored(true)} />
         )}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity bg-black/20 group-hover:opacity-100 pointer-events-none">
-          <div className="rounded-full bg-black/50 p-3 text-white backdrop-blur transform scale-90 group-hover:scale-100 transition">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
-          </div>
+
+        {/* Prominent Overlay Actions */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 opacity-0 transition-opacity bg-black/50 group-hover:opacity-100 pointer-events-none z-10">
+          <button onClick={(e) => { e.stopPropagation(); onView3D(); }} disabled={disabled} className="flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-white shadow-xl hover:bg-emerald-400 transition pointer-events-auto disabled:opacity-50 hover:scale-105">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            Convert to 3D
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onViewImage(); }} className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-6 py-2 text-sm font-medium text-white backdrop-blur-md hover:bg-white/20 transition pointer-events-auto hover:scale-105">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
+            View Full Image
+          </button>
         </div>
       </div>
 
