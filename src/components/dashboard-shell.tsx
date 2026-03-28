@@ -180,13 +180,19 @@ export function DashboardShell({
       });
 
       const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || "Upload failed");
+      if (!res.ok || data.error) {
+        console.warn("Upload failed:", data.error);
+        showToast(`Failed to push automatically. Initializing local download...`);
+        triggerBrowserDownload(preferred, `zennah-export.${extension}`);
+        if (newTab) newTab.location.href = "https://web.autocad.com/";
+        return;
+      }
 
       showToast(`Pushed ${data.filename} to Autodesk!`);
       if (newTab) newTab.location.href = "https://web.autocad.com/";
     } catch (e: any) {
       console.error(e);
-      showToast(`Failed to push automatically: ${e.message}. Downloading locally instead.`);
+      showToast(`Failed to push automatically. Downloading locally instead.`);
       triggerBrowserDownload(preferred, `zennah-export.${extension}`);
       if (newTab) newTab.location.href = "https://web.autocad.com/";
     }
