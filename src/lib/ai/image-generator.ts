@@ -227,7 +227,7 @@ export async function generateImages(
   const referenceImageUrl = String(input.referenceImageUrl ?? "").trim();
   const variants = buildVariants(prompt, mode);
   const refVariants = referenceImageUrl ? buildReferenceVariants(prompt) : variants;
-  const pixazoKey = process.env.PIXAZO_SUBSCRIPTION_KEY?.trim();
+  const pixazoKey = (process.env.PIXAZO_SUBSCRIPTION_KEY || process.env.PIXARO_SUBSCRIPTION_KEY || process.env.PIXAZO_API_KEY || "")?.trim();
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
   const hasReplicate = Boolean(process.env.REPLICATE_API_TOKEN?.trim());
 

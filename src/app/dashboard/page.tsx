@@ -104,6 +104,7 @@ export default async function DashboardPage() {
     const hasRenderableAssets = Boolean(images?.length || isRenderableAsset(safeModelPath));
     const metadata = (typeof g.metadata === "object" && g.metadata !== null ? g.metadata : {}) as {
       error?: string;
+      provider?: string;
       cadDownloads?: {
         glb?: string;
         obj?: string;
@@ -123,6 +124,7 @@ export default async function DashboardPage() {
       images,
       modelUrl: isRenderableAsset(safeModelPath) ? safeModelPath : undefined,
       cadDownloads: metadata.cadDownloads,
+      provider: typeof metadata.provider === "string" ? metadata.provider : undefined,
       error:
         failedError ||
         (hasRenderableAssets ? undefined : "Older assets are unavailable now. New generations will persist locally."),

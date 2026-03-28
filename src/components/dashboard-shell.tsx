@@ -108,6 +108,7 @@ type Message = {
   loading?: boolean;
   error?: string;
   isMultiView?: boolean;
+  provider?: string;
 };
 
 export function DashboardShell({
@@ -616,7 +617,14 @@ export function DashboardShell({
                           disabled={busy}
                           onView3D={() => handleGenerate3D(img, msg.prompt)}
                           onViewImage={() => setViewingImage(img)}
-                          label={msg.isMultiView ? ["Front", "45° Side", "Top-down"][i] : "flux-1.1-pro"}
+                          label={
+                            msg.isMultiView
+                              ? ["Front", "45° Side", "Top-down"][i]
+                              : (msg.provider === "gemini" ? "gemini-2.5" :
+                                msg.provider === "pixazo" ? "pixazo-flux" :
+                                  msg.provider === "mock" ? "mock-api" :
+                                    "flux-1.1-pro")
+                          }
                         />
                       ))}
                     </div>
