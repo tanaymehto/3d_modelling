@@ -76,6 +76,7 @@ type Message = {
     obj?: string;
     fbx?: string;
     stl?: string;
+    dwg?: string;
   };
   loading?: boolean;
   error?: string;
@@ -538,6 +539,10 @@ export function DashboardShell({
                               Download STL
                             </option>
                           ) : null}
+                          {/* Fallback support for DWG by returning the STL or primary model link if native DWG isn't ready */}
+                          <option value={msg.cadDownloads?.dwg || msg.cadDownloads?.stl || msg.modelUrl} data-ext="dwg" className="bg-[#111114]">
+                            Download DWG
+                          </option>
                         </select>
                         <button
                           type="button"

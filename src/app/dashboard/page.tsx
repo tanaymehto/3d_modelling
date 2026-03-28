@@ -109,6 +109,7 @@ export default async function DashboardPage() {
         obj?: string;
         fbx?: string;
         stl?: string;
+        dwg?: string;
       };
     };
 
