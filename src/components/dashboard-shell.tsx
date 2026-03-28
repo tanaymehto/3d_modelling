@@ -632,35 +632,34 @@ export function DashboardShell({
 
                   {!msg.loading && msg.modelUrl ? (
                     <div className="overflow-hidden rounded-xl border border-white/10 bg-white/5">
-                      {msg.previewUrl ? (
-                        <video
-                          src={msg.previewUrl}
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                          className="w-full rounded-t-xl"
-                        />
-                      ) : (
-                        <div className="flex h-[380px] relative items-center justify-center bg-[#151518]">
+                      <div className="relative flex min-h-[380px] w-full items-center justify-center bg-[#151518]">
+                        {msg.previewUrl ? (
+                          <video
+                            src={msg.previewUrl}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="absolute inset-0 h-full w-full object-cover opacity-80"
+                          />
+                        ) : (
                           <div className="absolute inset-0 z-0">
-                            {/* Abstract stylish 3D background placeholder */}
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.05)_0%,_transparent_60%)]" />
                             <div className="absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5 opacity-40 animate-[spin_10s_linear_infinite]" />
                             <div className="absolute top-1/2 left-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5 opacity-20 animate-[spin_7s_linear_infinite_reverse]" />
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setViewingGlb(msg.modelUrl!)}
-                            className="relative z-10 flex flex-col items-center gap-3 rounded-[32px] border border-white/10 bg-[#1e1e24]/80 px-10 py-6 hover:bg-[#25252b] transition shadow-2xl backdrop-blur-md hover:scale-105"
-                          >
-                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#18181b] shadow-inner text-emerald-400">
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                            </span>
-                            <span className="text-[13px] font-semibold tracking-wide text-white">Open 3D Viewer</span>
-                          </button>
-                        </div>
-                      )}
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setViewingGlb(msg.modelUrl!)}
+                          className="relative z-10 flex flex-col items-center gap-3 rounded-[32px] border border-white/10 bg-[#1e1e24]/60 px-10 py-6 hover:bg-[#25252b]/90 transition shadow-2xl backdrop-blur-md hover:scale-105"
+                        >
+                          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#18181b] shadow-inner text-emerald-400">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                          </span>
+                          <span className="text-[13px] font-semibold tracking-wide text-white">Open 3D Viewer</span>
+                        </button>
+                      </div>
                       <div className="flex items-center justify-between p-3">
                         <span className="text-xs text-white/60">AI 3D Model · AutoCAD-ready exports</span>
                         <div className="flex flex-wrap items-center justify-end gap-2">
