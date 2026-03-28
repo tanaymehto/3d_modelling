@@ -254,17 +254,6 @@ export async function generateImages(
     }
   }
 
-  if (geminiKey) {
-    try {
-      const images = await generateWithGemini(variants, geminiKey, referenceImageUrl || undefined);
-      if (images.length > 0) {
-        return { provider: "gemini", images };
-      }
-    } catch (err) {
-      console.warn("[Gemini] image generation failed, falling back", err);
-    }
-  }
-
   if (hasReplicate) {
     const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
     const images: string[] = [];
@@ -321,13 +310,22 @@ export async function generateImages(
     }
 
     if (images.length > 0) {
-      // Fill remaining slots with already-working Replicate URLs (avoid broken provider mixing)
       while (images.length < variants.length) {
         const base = images[images.length % Math.max(images.length, 1)] ?? images[0];
         images.push(base);
       }
-      console.log("[generator] final images:", images);
       return { provider: "replicate", images };
+    }
+  }
+
+  if (geminiKey) {
+    try {
+      const images = await generateWithGemini(variants, geminiKey, referenceImageUrl || undefined);
+      if (images.length > 0) {
+        return { provider: "gemini", images };
+      }
+    } catch (err) {
+      console.warn("[Gemini] image generation failed, falling back", err);
     }
   }
 
