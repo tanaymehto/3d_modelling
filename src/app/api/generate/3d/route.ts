@@ -31,8 +31,8 @@ export async function POST(req: Request) {
 
   const meshyEnabled = Boolean(process.env.MESHY_API_KEY?.trim());
   const user = await db.user.findUnique({ where: { id: session.user.id } });
-  if (!user || (!meshyEnabled && user.modelCredits <= 0)) {
-    return Response.json({ error: "No 3D credits left" }, { status: 402 });
+  if (!user) {
+    return Response.json({ error: "User not found" }, { status: 404 });
   }
 
   const project = await db.project.findFirst({
