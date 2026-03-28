@@ -166,6 +166,74 @@ function getGeminiImageDataUrl(payload: unknown): string {
   return "";
 }
 
+/**
+ * Step 1 of sketch-to-photo: ask Gemini (text-only) to produce a precise
+ * structural blueprint of the sketch. This description is then injected into
+ * every generation prompt so the image model works from a locked structural
+ * spec rather than free interpretation.
+ */
+async function describeSketch(
+  imageData: { mimeType: string; data: string },
+  apiKey: string,
+): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: imageData.mimeType,
+                    data: imageData.data,
+                  },
+                },
+                {
+                  text:
+                    "You are a master CAD jeweler analyzing a designer's sketch. " +
+                    "Describe this jewelry piece with precise technical detail: " +
+                    "1) Exact jewelry TYPE (necklace / ring / bracelet / earring / brooch — pick one). " +
+                    "2) Overall silhouette and dimensions (e.g. V-shaped necklace, ~40 cm). " +
+                    "3) Every structural element: chains, bands, settings, prongs, clasps. " +
+                    "4) Gemstone positions, shapes, and approximate counts. " +
+                    "5) Metal framework, filigree, or motif details. " +
+                    "6) Any symmetry or repeating pattern. " +
+                    "Be specific and structural. Max 180 words. No marketing language.",
+                },
+              ],
+            },
+          ],
+          generationConfig: { responseModalities: ["Text"] },
+        }),
+      },
+    );
+
+    if (!response.ok) return "";
+    const payload = (await response.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+    const candidates = Array.isArray(payload.candidates)
+      ? payload.candidates
+      : [];
+    for (const c of candidates) {
+      const parts =
+        (c as { content?: { parts?: unknown[] } }).content?.parts ?? [];
+      for (const p of parts) {
+        const text = (p as { text?: string }).text;
+        if (typeof text === "string" && text.trim()) return text.trim();
+      }
+    }
+  } catch {
+    // non-fatal — generation will proceed without the description
+  }
+  return "";
+}
+
 async function generateWithGemini(
   variants: string[],
   apiKey: string,
@@ -176,10 +244,22 @@ async function generateWithGemini(
     ? await fetchReferenceImageAsInlineData(referenceImageUrl)
     : null;
 
+  // Step 1 — get a structural blueprint of the sketch so the generation prompt
+  // is anchored to exact geometry rather than free interpretation.
+  let sketchBlueprint = "";
+  if (inlineReference?.data) {
+    sketchBlueprint = await describeSketch(inlineReference, apiKey);
+    if (sketchBlueprint) {
+      console.log("[Gemini] Sketch blueprint extracted — injecting into generation prompt.");
+    }
+  }
+
   for (const variant of variants) {
-    // When a reference image is attached the variant already contains
-    // preservation-focused instructions — no need to append extra text.
-    const textPrompt = variant;
+    // Inject the structural blueprint at the start of the prompt so the model
+    // has a locked spec before it reads stylistic instructions.
+    const textPrompt = sketchBlueprint
+      ? `STRUCTURAL BLUEPRINT FROM SKETCH:\n${sketchBlueprint}\n\nGENERATION INSTRUCTIONS:\n${variant}`
+      : variant;
 
     // Image MUST come first — Gemini's multimodal attention anchors to the
     // first part, so putting the sketch before the text ensures geometry is
