@@ -12,7 +12,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   cookies: {
     sessionToken: {
-      name: `next-auth.session-token`,
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-next-auth.session-token"
+          : "next-auth.session-token",
       options: {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -31,7 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: {},
         password: {},
       },
-      authorize: async (credentials) => {
+      authorize: async (credentials, request) => {
         const email = String(credentials.email ?? "").toLowerCase().trim();
         const password = String(credentials.password ?? "");
 
@@ -39,11 +42,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        const user = await db.user.findUnique({ where: { email } });
-        if (!user) return null;
+        let user = await db.user.findUnique({ where: { email } });
+        if (!user) {
+          if (password.length < 8) return null;
+          const passwordHash = await bcrypt.hash(password, 10);
+          user = await db.user.create({
+            data: {
+              name: email.split("@")[0],
+              email,
+              passwordHash,
+            },
+          });
+          await db.workspace.create({
+            data: {
+              name: "Private workspace",
+              ownerId: user.id,
+              isPrivate: true,
+            },
+          });
+        } else {
+          const valid = await bcrypt.compare(password, user.passwordHash);
+          if (!valid) return null;
+        }
 
-        const valid = await bcrypt.compare(password, user.passwordHash);
-        if (!valid) return null;
+        try {
+          const headersReq = request instanceof Request ? request : undefined;
+          const ip = headersReq ? headersReq.headers.get("x-forwarded-for") || "unknown" : "unknown";
+          const userAgent = headersReq ? headersReq.headers.get("user-agent") || "unknown" : "unknown";
+
+          await db.loginHistory.create({
+            data: {
+              userId: user.id,
+              ip: String(ip).substring(0, 255),
+              userAgent: String(userAgent).substring(0, 255),
+            }
+          });
+        } catch (e) {
+          console.error("Login history error", e);
+        }
 
         return {
           id: user.id,

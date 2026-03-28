@@ -37,6 +37,16 @@ model User {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   workspaces   Workspace[]
+  loginHistory LoginHistory[]
+}
+
+model LoginHistory {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  timestamp DateTime @default(now())
+  ip        String?
+  userAgent String?
 }
 
 model Workspace {
