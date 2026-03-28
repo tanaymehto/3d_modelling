@@ -5,6 +5,143 @@ export type Model3DInput = {
   imageUrl?: string;
 };
 
+// Unified prompt that handles BOTH raw designer sketches AND existing renders.
+// The output is a clean flat-lit white-background image optimised for
+// photogrammetry-based 3-D reconstruction inside Meshy.
+const MESHY_PREP_PROMPT =
+  "You are preparing a jewelry image for professional 3D model reconstruction. " +
+  "The input may be a hand-drawn designer sketch OR an existing photorealistic render. " +
+  "Generate ONE photorealistic product image following these rules exactly:\n" +
+  "1. GEOMETRY: Preserve the EXACT shape, silhouette, stone layout, and metalwork " +
+  "proportions from the input — do not simplify or invent details.\n" +
+  "2. MATERIALS: If the input is a sketch, infer luxury materials intelligently " +
+  "(green tones → flawless emeralds, silver/grey → polished platinum or white gold, " +
+  "yellow → 18k solid gold, white/clear → VVS diamonds). " +
+  "If the input is already a render, keep all existing materials exactly as they are.\n" +
+  "3. LIGHTING: Perfectly flat, even, shadowless studio lighting. " +
+  "Absolutely NO dramatic shadows, NO caustic glows, NO specular spill on the background.\n" +
+  "4. BACKGROUND: Pure white (#FFFFFF) — no gradients, no surface texture, no fabric.\n" +
+  "5. FRAMING: The ENTIRE jewelry piece fully visible, centered, not cropped at any edge.\n" +
+  "6. NO bokeh, NO depth-of-field blur, NO humans, NO mannequin, NO text overlays.\n" +
+  "This image will be sent directly into a 3D photogrammetry reconstructor — " +
+  "clean isolation and flat lighting are critical.";
+
+// Default jewelry texture prompt always sent to Meshy
+const MESHY_JEWELRY_TEXTURE_PROMPT =
+  "18k polished white gold or platinum metal, brilliant-cut diamond facets with " +
+  "internal sparkle, flawless precious gemstones with light caustics and transparency, " +
+  "luxury fine-jewelry PBR materials, photorealistic surface detail";
+
+const MESHY_NEGATIVE_TEXTURE_PROMPT =
+  "plastic, matte finish, clay, cartoon, toy, rough unfinished surface, unrealistic colours";
+
+async function fetchImageAsInlineData(
+  url: string,
+): Promise<{ mimeType: string; data: string } | null> {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("data:")) {
+    const match = trimmed.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return null;
+    return { mimeType: match[1] ?? "image/png", data: match[2] ?? "" };
+  }
+
+  let fetchUrl = trimmed;
+  if (trimmed.startsWith("/")) {
+    const baseUrl = process.env.AUTH_URL?.trim();
+    fetchUrl = baseUrl
+      ? new URL(trimmed, baseUrl).toString()
+      : `http://localhost:3000${trimmed}`;
+  }
+
+  try {
+    const response = await fetch(fetchUrl);
+    if (!response.ok) return null;
+    const mimeType =
+      response.headers.get("content-type")?.split(";")[0]?.trim() ??
+      "image/png";
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return { mimeType, data: buffer.toString("base64") };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Uses Gemini to regenerate the source jewelry image with flat lighting and a
+ * white background — dramatically improving Meshy's 3-D reconstruction quality.
+ * Returns a data-URI on success, or null if the step should be skipped.
+ */
+async function generateCleanMeshyImage(
+  sourceImageUrl: string,
+): Promise<string | null> {
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!geminiKey) return null;
+
+  const inlineData = await fetchImageAsInlineData(sourceImageUrl);
+  if (!inlineData) return null;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: MESHY_PREP_PROMPT },
+                {
+                  inlineData: {
+                    mimeType: inlineData.mimeType,
+                    data: inlineData.data,
+                  },
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ["Image"],
+            imageConfig: { aspectRatio: "1:1" },
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) return null;
+    const payload = (await response.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+
+    const candidates = Array.isArray(payload.candidates)
+      ? payload.candidates
+      : [];
+    for (const candidate of candidates) {
+      const parts =
+        (
+          candidate as { content?: { parts?: unknown[] } }
+        ).content?.parts ?? [];
+      for (const part of parts) {
+        const p = part as Record<string, unknown>;
+        const id = (p.inlineData ?? p.inline_data) as
+          | Record<string, unknown>
+          | undefined;
+        if (id?.data) {
+          const mime =
+            String(id.mimeType ?? id.mime_type ?? "image/png");
+          return `data:${mime};base64,${id.data}`;
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export type Model3DOutput = {
   modelUrl: string;
   previewUrl?: string;
@@ -141,21 +278,42 @@ async function generateWithMeshy(imageUrl: string, prompt?: string): Promise<Mod
   const pollIntervalMs = Number(process.env.MESHY_POLL_INTERVAL_MS ?? String(MESHY_DEFAULT_POLL_INTERVAL_MS));
   const pollMs = Number.isFinite(pollIntervalMs) && pollIntervalMs >= 500 ? Math.floor(pollIntervalMs) : MESHY_DEFAULT_POLL_INTERVAL_MS;
 
-  const meshyImageInput = await toMeshyImageInput(imageUrl);
-  const texturePrompt = String(prompt ?? "").trim();
+  // Pre-process: generate a flat-lit white-bg version optimised for 3-D reconstruction.
+  console.log("[Meshy] Pre-processing image via Gemini for optimal 3-D quality…");
+  const cleanImageUrl = await generateCleanMeshyImage(imageUrl);
+  if (cleanImageUrl) {
+    console.log("[Meshy] Using Gemini-preprocessed clean image.");
+  } else {
+    console.log("[Meshy] Preprocessing skipped (no Gemini key or failed) — using original image.");
+  }
+
+  const meshyImageInput = await toMeshyImageInput(cleanImageUrl ?? imageUrl);
+
+  // Compose texture prompt: user hint first, then always include jewelry defaults.
+  const userHint = String(prompt ?? "").trim();
+  const texturePrompt = userHint
+    ? `${userHint}. ${MESHY_JEWELRY_TEXTURE_PROMPT}`.slice(0, 600)
+    : MESHY_JEWELRY_TEXTURE_PROMPT.slice(0, 600);
+
   const createPayload: Record<string, unknown> = {
     image_url: meshyImageInput,
-    ai_model: "latest",
+    // meshy-4 is their highest-quality image-to-3D model
+    ai_model: "meshy-4",
     should_texture: true,
     enable_pbr: true,
     target_formats: ["glb", "obj", "fbx", "stl"],
     image_enhancement: true,
     remove_lighting: true,
     moderation: false,
+    // Jewelry-specific quality settings
+    symmetry_mode: "auto",      // exploit bilateral symmetry common in jewelry
+    topology: "quad",           // quad mesh = cleaner geometry for CAD workflows
+    surface_mode: "smooth",     // no hard facets on organic jewelry surfaces
+    texture_richness: "high",   // maximum material detail
+    texture_resolution: 4096,   // highest available resolution
+    texture_prompt: texturePrompt,
+    negative_texture_prompt: MESHY_NEGATIVE_TEXTURE_PROMPT,
   };
-  if (texturePrompt) {
-    createPayload.texture_prompt = texturePrompt.slice(0, 600);
-  }
 
   const createRes = await fetch(`${MESHY_BASE_URL}/openapi/v1/image-to-3d`, {
     method: "POST",
