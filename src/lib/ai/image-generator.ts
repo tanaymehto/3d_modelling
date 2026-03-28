@@ -243,77 +243,43 @@ export async function generateImages(
     }
   }
 
+  const errors: string[] = [];
+
   if (pixazoKey) {
     try {
       const images = await generateWithPixazo(variants, pixazoKey);
-      if (images.length > 0) {
-        return { provider: "pixazo", images };
-      }
+      if (images.length > 0) return { provider: "pixazo", images };
     } catch (err) {
-      console.warn("[Pixazo] image generation failed, falling back", err);
+      errors.push(`Pixazo Error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   if (hasReplicate) {
     const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
     const images: string[] = [];
-
     for (const variant of variants) {
-      let done = false;
-      let attempts = 0;
-
+      let done = false; let attempts = 0;
       while (!done && attempts < 3) {
         attempts += 1;
         try {
           const output = await replicate.run("black-forest-labs/flux-1.1-pro", {
-            input: {
-              prompt: variant,
-              aspect_ratio: "1:1",
-              output_format: "jpg",
-              output_quality: 90,
-              safety_tolerance: 2,
-            },
+            input: { prompt: variant, aspect_ratio: "1:1", output_format: "jpg", output_quality: 90, safety_tolerance: 2 },
           });
-
           const raw = Array.isArray(output) ? output[0] : output;
-          let imageUrl = "";
-          if (raw != null) {
-            if (typeof (raw as { url?: () => URL }).url === "function") {
-              imageUrl = (raw as { url: () => URL }).url().href;
-            } else {
-              imageUrl = String(raw);
-            }
-          }
-
-          console.log("[Replicate] url:", imageUrl);
-          if (imageUrl.startsWith("http")) {
-            images.push(imageUrl);
-          }
-
+          const imageUrl = typeof raw === 'string' ? raw : (typeof (raw as any)?.url === 'function' ? (raw as any).url().href : String(raw));
+          if (imageUrl.startsWith("http")) images.push(imageUrl);
           done = true;
-        } catch (err: unknown) {
-          const status = (err as { response?: { status?: number } })?.response?.status;
-          const retryAfterRaw = (err as { response?: { headers?: { get?: (k: string) => string | null } } })?.response?.headers?.get?.("retry-after");
-          const retryAfterSec = Number(retryAfterRaw ?? "0");
-
-          if (status === 429) {
-            const waitMs = Number.isFinite(retryAfterSec) && retryAfterSec > 0 ? retryAfterSec * 1000 + 250 : 5500;
-            console.warn("[Replicate] rate-limited; waiting", waitMs, "ms before retry");
-            await sleep(waitMs);
-            continue;
-          }
-
-          console.warn("[Replicate] call failed (status", status ?? "unknown", "), skipping variant");
+        } catch (err: any) {
+          const status = err?.response?.status;
+          if (status === 429) { await sleep(5000); continue; }
+          if (status === 402) errors.push(`Replicate Error: Payment Required (Out of credits)`);
+          else errors.push(`Replicate Error: Status ${status}`);
           done = true;
         }
       }
     }
-
     if (images.length > 0) {
-      while (images.length < variants.length) {
-        const base = images[images.length % Math.max(images.length, 1)] ?? images[0];
-        images.push(base);
-      }
+      while (images.length < variants.length) images.push(images[images.length % Math.max(images.length, 1)] ?? images[0]);
       return { provider: "replicate", images };
     }
   }
@@ -321,33 +287,11 @@ export async function generateImages(
   if (geminiKey) {
     try {
       const images = await generateWithGemini(variants, geminiKey, referenceImageUrl || undefined);
-      if (images.length > 0) {
-        return { provider: "gemini", images };
-      }
+      if (images.length > 0) return { provider: "gemini", images };
     } catch (err) {
-      console.warn("[Gemini] image generation failed, falling back", err);
+      errors.push(`Gemini Error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  if (prompt) {
-    console.warn("No valid API keys found (Replicate, Gemini, Pixazo). Falling back to mock images.");
-    // Fall back to clean placeholder images rather than broken links
-    return {
-      provider: "mock",
-      images: [
-        "https://picsum.photos/seed/zennah-1/1024/1024",
-        "https://picsum.photos/seed/zennah-2/1024/1024",
-        "https://picsum.photos/seed/zennah-3/1024/1024",
-      ],
-    };
-  }
-
-  return {
-    provider: "mock",
-    images: [
-      "https://picsum.photos/seed/jewelry-a/1024/1024",
-      "https://picsum.photos/seed/jewelry-b/1024/1024",
-      "https://picsum.photos/seed/jewelry-c/1024/1024",
-    ],
-  };
+  throw new Error(`All generation APIs failed:\n${errors.join('\n') || "No valid API keys found in Railway variables."}`);
 }
