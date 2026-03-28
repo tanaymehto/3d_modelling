@@ -7,6 +7,17 @@ import { GLBViewer } from "@/components/glb-viewer";
 function ImageCard({ src, onView3D, label, disabled }: { src: string; onView3D: () => void; label?: string; disabled?: boolean }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    if (imgRef.current?.complete) {
+      if (imgRef.current.naturalWidth === 0) {
+        setErrored(true);
+      } else {
+        setLoaded(true);
+      }
+    }
+  }, [src]);
 
   return (
     <article className="group overflow-hidden rounded-xl border border-white/10 bg-white/5 transition-colors hover:border-white/20">
@@ -23,6 +34,7 @@ function ImageCard({ src, onView3D, label, disabled }: { src: string; onView3D: 
           </div>
         ) : (
           <img
+            ref={imgRef}
             src={src}
             alt="Generated jewelry"
             className={`absolute inset-0 h-full w-full object-cover transition-all duration-500 ${loaded ? "opacity-100 group-hover:scale-105" : "opacity-0"}`}
@@ -536,13 +548,8 @@ export function DashboardShell({
                           ) : null}
                           {msg.cadDownloads?.stl ? (
                             <option value={msg.cadDownloads.stl} data-ext="stl" className="bg-[#111114]">
-                              Download STL
                             </option>
                           ) : null}
-                          {/* Fallback support for DWG by returning the STL or primary model link if native DWG isn't ready */}
-                          <option value={msg.cadDownloads?.dwg || msg.cadDownloads?.stl || msg.modelUrl} data-ext="dwg" className="bg-[#111114]">
-                            Download DWG
-                          </option>
                         </select>
                         <button
                           type="button"
