@@ -125,12 +125,13 @@ export function DashboardShell({
         try {
           const pending = JSON.parse(pendingStr);
           if (pending?.url && pending?.extension) {
-            triggerBrowserDownload(pending.url, `zennah-export.${pending.extension}`);
-            window.open("https://web.autocad.com", "_blank", "noopener,noreferrer");
-            showToast(`Downloaded ${pending.extension.toUpperCase()}. AutoCAD Web is opening now.`);
+            // Need setTimeout to let react mount fully before firing async state
+            setTimeout(() => {
+              void handleOpenInAutoCAD({ [pending.extension]: pending.url }, pending.url);
+            }, 100);
 
             // Cleanup URL
-            window.history.replaceState({}, document.title, "/dashboard");
+            window.history.replaceState({}, document.title, window.location.pathname);
           }
         } catch (e) { }
       }
@@ -156,7 +157,7 @@ export function DashboardShell({
     a.remove();
   }
 
-  function handleOpenInAutoCAD(cad: Message["cadDownloads"], fallbackModelUrl: string) {
+  async function handleOpenInAutoCAD(cad: Message["cadDownloads"], fallbackModelUrl: string) {
     const preferred = cad?.stl || cad?.obj || cad?.fbx || cad?.glb || fallbackModelUrl;
     const extension = cad?.stl ? "stl" : cad?.obj ? "obj" : cad?.fbx ? "fbx" : "glb";
 
@@ -166,11 +167,29 @@ export function DashboardShell({
       return;
     }
 
-    triggerBrowserDownload(preferred, `zennah-export.${extension}`);
-    window.open("https://web.autocad.com", "_blank", "noopener,noreferrer");
-    showToast(
-      `Downloaded ${extension.toUpperCase()}. AutoCAD Web is opening now - use Import to add the file.`,
-    );
+    showToast("Pushing model to Autodesk Drive... Please wait.");
+
+    // Open tab immediately to bypass popup blockers, then redirect it when done
+    const newTab = window.open("about:blank", "_blank", "noopener,noreferrer");
+
+    try {
+      const res = await fetch("/api/autodesk/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileUrl: preferred, extension })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Upload failed");
+
+      showToast(`Pushed ${data.filename} to Autodesk!`);
+      if (newTab) newTab.location.href = "https://web.autocad.com/";
+    } catch (e: any) {
+      console.error(e);
+      showToast(`Failed to push automatically: ${e.message}. Downloading locally instead.`);
+      triggerBrowserDownload(preferred, `zennah-export.${extension}`);
+      if (newTab) newTab.location.href = "https://web.autocad.com/";
+    }
   }
 
   const allProjects = useMemo(() => workspaces.flatMap((w) => w.projects), [workspaces]);
