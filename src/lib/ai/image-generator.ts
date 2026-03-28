@@ -330,10 +330,15 @@ export async function generateImages(
   }
 
   if (prompt) {
-    const seeds = [101, 202, 303];
+    console.warn("No valid API keys found (Replicate, Gemini, Pixazo). Falling back to mock images.");
+    // Fall back to clean placeholder images rather than broken links
     return {
-      provider: "pollinations",
-      images: variants.map((variant, index) => pollinationsUrl(variant, seeds[index] ?? 999)),
+      provider: "mock",
+      images: [
+        "https://picsum.photos/seed/zennah-1/1024/1024",
+        "https://picsum.photos/seed/zennah-2/1024/1024",
+        "https://picsum.photos/seed/zennah-3/1024/1024",
+      ],
     };
   }
 
