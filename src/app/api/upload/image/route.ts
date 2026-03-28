@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/jpg"]);
@@ -17,6 +18,8 @@ export async function POST(req: Request) {
 
   const formData = await req.formData();
   const file = formData.get("file");
+  const projectId = String(formData.get("projectId") || "").trim();
+
   if (!(file instanceof File)) {
     return Response.json({ error: "file is required" }, { status: 400 });
   }
@@ -37,12 +40,42 @@ export async function POST(req: Request) {
   await mkdir(outputDir, { recursive: true });
   await writeFile(path.join(outputDir, filename), buffer);
 
-  // Always return base64 data URI as primary, with fallback file path
+  const fallbackUrl = `/api/generated/images/${filename}`;
+
+  // If projectId is provided, store this reference image sketch as a successful IMAGE Generation 
+  // so that it persists in the database and shows up in the chat feed on reload
+  if (projectId) {
+    const project = await db.project.findFirst({
+      where: { id: projectId, workspace: { ownerId: session.user.id } },
+    });
+
+    if (project) {
+      const generation = await db.generation.create({
+        data: {
+          projectId,
+          prompt: `Attached sketch: ${file.name || "Upload"}`,
+          type: "IMAGE",
+          status: "COMPLETED",
+          metadata: { isUpload: true },
+        },
+      });
+
+      await db.generatedAsset.create({
+        data: {
+          generationId: generation.id,
+          filePath: fallbackUrl,
+          fileType: "IMAGE",
+          metadata: { filename: file.name },
+        },
+      });
+    }
+  }
+
   const base64 = buffer.toString("base64");
   const dataUri = `data:${file.type};base64,${base64}`;
 
-  return Response.json({ 
+  return Response.json({
     imageUrl: dataUri,
-    fallbackUrl: `/generated/images/${filename}`
+    fallbackUrl
   });
 }

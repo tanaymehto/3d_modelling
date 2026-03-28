@@ -190,14 +190,14 @@ export function DashboardShell({
         prev.map((m) =>
           m.id === pendingId
             ? {
-                id: pendingId,
-                prompt: attachedForRequest
-                  ? `${currentPrompt} (enhanced from attached sketch)`
-                  : currentPrompt,
-                images: data.images,
-                loading: false,
-                isMultiView: mode === "multiview",
-              }
+              id: pendingId,
+              prompt: attachedForRequest
+                ? `${currentPrompt} (enhanced from attached sketch)`
+                : currentPrompt,
+              images: data.images,
+              loading: false,
+              isMultiView: mode === "multiview",
+            }
             : m,
         ),
       );
@@ -237,13 +237,13 @@ export function DashboardShell({
           prev.map((m) =>
             m.id === pendingId
               ? {
-                  id: pendingId,
-                  prompt: "3D generation",
-                  modelUrl: data.modelUrl,
-                  previewUrl: data.previewUrl ?? undefined,
-                  cadDownloads: data.cadDownloads ?? undefined,
-                  loading: false,
-                }
+                id: pendingId,
+                prompt: "3D generation",
+                modelUrl: data.modelUrl,
+                previewUrl: data.previewUrl ?? undefined,
+                cadDownloads: data.cadDownloads ?? undefined,
+                loading: false,
+              }
               : m,
           ),
         );
@@ -276,6 +276,7 @@ export function DashboardShell({
     setBusy(true);
     const formData = new FormData();
     formData.set("file", file);
+    formData.set("projectId", selectedProject);
 
     try {
       const uploadRes = await fetch("/api/upload/image", {
@@ -340,9 +341,8 @@ export function DashboardShell({
                 {workspace.projects.map((project) => (
                   <button
                     key={project.id}
-                    className={`w-full rounded-md px-2 py-1 text-left text-sm ${
-                      selectedProject === project.id ? "bg-white/15" : "hover:bg-white/10"
-                    }`}
+                    className={`w-full rounded-md px-2 py-1 text-left text-sm ${selectedProject === project.id ? "bg-white/15" : "hover:bg-white/10"
+                      }`}
                     onClick={() => setSelectedProject(project.id)}
                     type="button"
                   >
@@ -449,14 +449,14 @@ export function DashboardShell({
                       />
                     ) : (
                       <div className="flex h-48 items-center justify-center text-xs text-white/40">
-                          <button
-                            type="button"
-                            onClick={() => setViewingGlb(msg.modelUrl!)}
-                            className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-8 py-5 hover:bg-white/10 transition-colors"
-                          >
-                            <span className="text-2xl">🪐</span>
-                            <span className="text-sm text-white/60">Open 3D Viewer</span>
-                          </button>
+                        <button
+                          type="button"
+                          onClick={() => setViewingGlb(msg.modelUrl!)}
+                          className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-8 py-5 hover:bg-white/10 transition-colors"
+                        >
+                          <span className="text-2xl">🪐</span>
+                          <span className="text-sm text-white/60">Open 3D Viewer</span>
+                        </button>
                       </div>
                     )}
                     <div className="flex items-center justify-between p-3">

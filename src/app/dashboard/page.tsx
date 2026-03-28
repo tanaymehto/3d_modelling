@@ -68,14 +68,16 @@ export default async function DashboardPage() {
   });
 
   function isRenderableAsset(filePath: string | undefined): boolean {
-    if (!filePath || !filePath.startsWith("/")) {
-      return false;
+    if (!filePath) return false;
+    if (filePath.startsWith("http") || filePath.startsWith("data:")) return true;
+    if (filePath.startsWith("/api/assets") || filePath.startsWith("/api/generated") || filePath.startsWith("/generated/")) {
+      return true;
     }
 
+    if (!filePath.startsWith("/")) return false;
+
     const cleanRelativePath = filePath.replace(/^\/+/, "").split("?")[0] ?? "";
-    if (!cleanRelativePath) {
-      return false;
-    }
+    if (!cleanRelativePath) return false;
 
     const absolutePath = path.join(process.cwd(), "public", cleanRelativePath.replace(/\//g, path.sep));
     return existsSync(absolutePath);
@@ -94,9 +96,9 @@ export default async function DashboardPage() {
     const images =
       g.type === "IMAGE"
         ? g.assets
-            .filter((a) => a.fileType === "IMAGE")
-            .map((a) => a.filePath)
-            .filter((filePath) => isRenderableAsset(filePath))
+          .filter((a) => a.fileType === "IMAGE")
+          .map((a) => a.filePath)
+          .filter((filePath) => isRenderableAsset(filePath))
         : undefined;
 
     const hasRenderableAssets = Boolean(images?.length || isRenderableAsset(safeModelPath));
