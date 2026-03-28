@@ -259,10 +259,12 @@ export async function generateImages(
     const images: string[] = [];
     for (const variant of variants) {
       let done = false; let attempts = 0;
+      let targetModel: `${string}/${string}` = "black-forest-labs/flux-1.1-pro";
+
       while (!done && attempts < 3) {
         attempts += 1;
         try {
-          const output = await replicate.run("black-forest-labs/flux-1.1-pro", {
+          const output = await replicate.run(targetModel, {
             input: { prompt: variant, aspect_ratio: "1:1", output_format: "jpg", output_quality: 90, safety_tolerance: 2 },
           });
           const raw = Array.isArray(output) ? output[0] : output;
@@ -272,6 +274,14 @@ export async function generateImages(
         } catch (err: any) {
           const status = err?.response?.status;
           if (status === 429) { await sleep(5000); continue; }
+
+          if (status === 402 && targetModel === "black-forest-labs/flux-1.1-pro") {
+            // Free accounts cannot run flux-pro models without a credit card. Fallback automatically to flux-schnell for the demo.
+            console.warn("Replicate Payment Required. Falling back to flux-schnell");
+            targetModel = "black-forest-labs/flux-schnell";
+            continue; // Retry immediately with free-tier model
+          }
+
           if (status === 402) errors.push(`Replicate Error: Payment Required (Out of credits)`);
           else errors.push(`Replicate Error: Status ${status}`);
           done = true;
