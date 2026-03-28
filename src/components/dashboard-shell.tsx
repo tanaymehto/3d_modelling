@@ -719,16 +719,19 @@ export function DashboardShell({
           </div>
         </div>
 
+        {/* Gradient Mask to protect footer text from white images */}
+        <div className="pointer-events-none absolute bottom-0 left-0 z-30 h-56 w-full bg-gradient-to-t from-[#09090b] via-[#09090b]/80 to-transparent" />
+
         {/* Floating AI Prompt Footer */}
-        <div className="absolute bottom-6 left-1/2 z-40 w-full max-w-3xl -translate-x-1/2 px-4 shadow-2xl">
+        <div className="absolute bottom-6 left-1/2 z-40 w-full max-w-3xl -translate-x-1/2 px-4">
           <div className="flex flex-col gap-3">
 
             {/* Attached sketch preview bubble if exists */}
             {attachedImage ? (
-              <div className="flex items-center gap-3 self-center rounded-[24px] border border-emerald-400/20 bg-[#1e1e24] p-2 pr-4 shadow-xl mb-2 backdrop-blur-xl">
+              <div className="flex items-center gap-3 self-center rounded-[24px] border border-emerald-400/30 bg-black/80 p-2 pr-4 shadow-[0_0_20px_rgba(0,0,0,0.8)] mb-2 backdrop-blur-xl">
                 <img src={attachedImage.url} alt="Attached sketch" className="h-10 w-10 rounded-[14px] object-cover" />
                 <div className="text-xs">
-                  <p className="text-emerald-100 font-medium tracking-wide">Sketch attached: {attachedImage.name}</p>
+                  <p className="text-emerald-300 font-medium tracking-wide">Sketch attached: {attachedImage.name}</p>
                 </div>
                 <button
                   type="button"
@@ -741,14 +744,14 @@ export function DashboardShell({
                 >
                   Direct to 3D
                 </button>
-                <button type="button" className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-white transition" onClick={() => setAttachedImage(null)}>
+                <button type="button" className="rounded-full p-1.5 text-white/40 hover:bg-white/20 hover:text-white transition" onClick={() => setAttachedImage(null)}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
               </div>
             ) : null}
 
             {/* Main Prompt Input Bar */}
-            <div className="flex w-full items-center gap-3 rounded-[32px] border border-white/10 bg-[#1f1f23] p-[8px] drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)] transition hover:border-white/20">
+            <div className="flex w-full items-center gap-3 rounded-[32px] border border-white/10 bg-black/80 backdrop-blur-2xl p-[8px] shadow-[0_0_40px_rgba(0,0,0,0.5)] transition hover:border-white/20">
               <button
                 type="button"
                 className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white transition"
@@ -770,7 +773,7 @@ export function DashboardShell({
                 onClick={handleGenerateImage}
                 disabled={busy || !selectedProject || !prompt.trim()}
                 type="button"
-                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-[#35153a] hover:bg-[#451e4d] text-white disabled:opacity-50 transition drop-shadow-md"
+                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-[#4a3dff] hover:bg-[#5b4fff] text-white disabled:opacity-50 transition shadow-lg"
               >
                 {busy ? <Loader2 size={18} className="animate-spin" /> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>}
               </button>
