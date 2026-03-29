@@ -8,8 +8,11 @@ export type ImageGenerationInput = {
 
 export type ImageGenerationOutput = {
   images: string[];
-  provider: "pixazo" | "gemini" | "pollinations" | "replicate" | "mock";
+  provider: "pixazo" | "gemini" | "pollinations" | "replicate" | "mock" | "modelslab-controlnet" | "modelslab-i2i";
 };
+
+const MODELSLAB_CONTROLNET_URL = "https://modelslab.com/api/v5/controlnet";
+const MODELSLAB_I2I_URL = "https://modelslab.com/api/v7/images/image-to-image";
 
 // Hard prefix applied to EVERY prompt — ensures jewelry closeup, no human body
 const JEWELRY_SYSTEM_PREFIX =
@@ -164,6 +167,173 @@ function getGeminiImageDataUrl(payload: unknown): string {
   }
 
   return "";
+}
+
+/**
+ * Clean short prompts for ControlNet (SD-based). Long instruction text
+ * hurts SD quality — use concise style tags instead.
+ */
+function buildControlNetVariants(userPrompt: string): string[] {
+  const base = userPrompt.trim()
+    ? `${userPrompt.trim()}, `
+    : "";
+  return [
+    `${base}ultra photorealistic fine jewelry product photograph, luxury gemstones, polished metal, clean white background, studio lighting, macro detail, 8k`,
+    `${base}photorealistic luxury jewelry, flat lay overhead, pure white background, even shadowless studio light, ultra sharp macro focus, professional product shot`,
+    `${base}high-end jewelry product render, soft warm studio lighting, neutral background, brilliant gemstone facets, polished gold or platinum, photorealistic 8k`,
+  ];
+}
+
+/**
+ * Resolves relative or data-URI image references to a public absolute URL
+ * that external APIs (ModelsLab) can fetch. Returns null for data URIs since
+ * those can't be fetched by external services.
+ */
+function resolveToPublicUrl(imageUrl: string): string | null {
+  const trimmed = imageUrl.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("data:")) return null; // can't send data URIs to external APIs
+  if (trimmed.startsWith("http")) return trimmed;
+  // Relative path → absolute using AUTH_URL or localhost fallback
+  const base = process.env.AUTH_URL?.trim() || "http://localhost:3000";
+  return new URL(trimmed, base).toString();
+}
+
+/**
+ * Poll a ModelsLab async result URL until the job finishes or times out.
+ */
+async function pollModelsLabResult(
+  fetchUrl: string,
+  apiKey: string,
+  maxWaitMs = 120000,
+): Promise<string[]> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < maxWaitMs) {
+    await sleep(3000);
+    const res = await fetch(fetchUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: apiKey }),
+    });
+    if (!res.ok) throw new Error(`ModelsLab fetch failed: ${res.status}`);
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (data.status === "success" && Array.isArray(data.output)) {
+      return data.output as string[];
+    }
+    if (data.status === "error") {
+      throw new Error(String(data.message ?? "ModelsLab processing error"));
+    }
+    // status === "processing" → keep polling
+  }
+  throw new Error("ModelsLab timed out after 2 minutes");
+}
+
+/**
+ * ModelsLab ControlNet — uses lineart control to follow the sketch structure
+ * EXACTLY while generating a photorealistic jewelry render.
+ * Best geometry fidelity of all providers.
+ */
+async function generateWithModelsLabControlNet(
+  variants: string[],
+  sketchUrl: string,
+  apiKey: string,
+): Promise<string[]> {
+  const publicUrl = resolveToPublicUrl(sketchUrl);
+  if (!publicUrl) throw new Error("ControlNet requires a public image URL (not a data URI).");
+
+  const images: string[] = [];
+  for (const variant of variants) {
+    const res = await fetch(MODELSLAB_CONTROLNET_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        key: apiKey,
+        // boziorealvisxlv4 = photorealistic SDXL model (Meshy-recommended in their docs)
+        model_id: "boziorealvisxlv4",
+        controlnet_model: "lineart",
+        controlnet_type: "lineart",
+        // auto_hint extracts clean lines from rough sketches automatically
+        auto_hint: "yes",
+        prompt: variant,
+        negative_prompt:
+          "low quality, blurry, deformed, ugly, plastic, cartoon, mannequin, human, body parts, text, watermark",
+        init_image: publicUrl,
+        width: "1024",
+        height: "1024",
+        samples: "1",
+        num_inference_steps: 31,
+        safety_checker: "no",
+        guidance_scale: 7.5,
+        // 0.9 = strong structural adherence to sketch lines
+        controlnet_conditioning_scale: 0.9,
+        seed: null,
+        webhook: null,
+        track_id: null,
+      }),
+    });
+
+    if (!res.ok) throw new Error(`ModelsLab ControlNet HTTP ${res.status}`);
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+    if (data.status === "error") {
+      throw new Error(String(data.message ?? "ModelsLab ControlNet error"));
+    }
+    if (data.status === "success" && Array.isArray(data.output) && data.output[0]) {
+      images.push(String(data.output[0]));
+    } else if (data.status === "processing" && typeof data.fetch_result === "string") {
+      const polled = await pollModelsLabResult(data.fetch_result, apiKey);
+      if (polled[0]) images.push(String(polled[0]));
+      else throw new Error("ModelsLab ControlNet returned empty result after polling");
+    } else {
+      throw new Error("ModelsLab ControlNet returned unexpected response");
+    }
+  }
+  return images;
+}
+
+/**
+ * ModelsLab nano-banana-2 (gemini-3.1-i2i) — image-to-image editing.
+ * Good for refining/enhancing an existing render while keeping structure.
+ */
+async function generateWithModelsLabI2I(
+  variants: string[],
+  sourceImageUrl: string,
+  apiKey: string,
+): Promise<string[]> {
+  const publicUrl = resolveToPublicUrl(sourceImageUrl);
+  if (!publicUrl) throw new Error("ModelsLab I2I requires a public image URL.");
+
+  const images: string[] = [];
+  for (const variant of variants) {
+    const res = await fetch(MODELSLAB_I2I_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        key: apiKey,
+        model_id: "gemini-3.1-i2i",
+        prompt: variant,
+        init_image: [publicUrl],
+        aspect_ratio: "1:1",
+      }),
+    });
+
+    if (!res.ok) throw new Error(`ModelsLab I2I HTTP ${res.status}`);
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+    if (data.status === "error") {
+      throw new Error(String(data.message ?? "ModelsLab I2I error"));
+    }
+    if (data.status === "success" && Array.isArray(data.output) && data.output[0]) {
+      images.push(String(data.output[0]));
+    } else if (data.status === "processing" && typeof data.fetch_result === "string") {
+      const polled = await pollModelsLabResult(data.fetch_result, apiKey);
+      if (polled[0]) images.push(String(polled[0]));
+      else throw new Error("ModelsLab I2I returned empty result after polling");
+    } else {
+      throw new Error("ModelsLab I2I returned unexpected response");
+    }
+  }
+  return images;
 }
 
 /**
@@ -322,16 +492,29 @@ export async function generateImages(
   const pixazoKey = (process.env.PIXAZO_SUBSCRIPTION_KEY || process.env.PIXARO_SUBSCRIPTION_KEY || process.env.PIXAZO_API_KEY || "")?.trim();
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
   const hasReplicate = Boolean(process.env.REPLICATE_API_TOKEN?.trim());
+  const modelsLabKey = process.env.MODELSLAB_API_KEY?.trim();
 
-  // For sketch-to-image enhancement, Gemini multimodal is the most reliable path.
-  if (referenceImageUrl && geminiKey) {
-    try {
-      const images = await generateWithGemini(refVariants, geminiKey, referenceImageUrl);
-      if (images.length > 0) {
-        return { provider: "gemini", images };
+  if (referenceImageUrl) {
+    // 1st choice: ModelsLab ControlNet — pixel-level geometry adherence to the sketch.
+    // Uses lineart ControlNet so the generated photo follows the sketch lines exactly.
+    if (modelsLabKey && !referenceImageUrl.startsWith("data:")) {
+      try {
+        const cnVariants = buildControlNetVariants(prompt);
+        const images = await generateWithModelsLabControlNet(cnVariants, referenceImageUrl, modelsLabKey);
+        if (images.length > 0) return { provider: "modelslab-controlnet", images };
+      } catch (err) {
+        console.warn("[ModelsLab ControlNet] failed, falling back to Gemini:", err instanceof Error ? err.message : err);
       }
-    } catch (err) {
-      console.warn("[Gemini] reference enhancement failed, falling back", err);
+    }
+
+    // 2nd choice: Gemini multimodal with sketch blueprint.
+    if (geminiKey) {
+      try {
+        const images = await generateWithGemini(refVariants, geminiKey, referenceImageUrl);
+        if (images.length > 0) return { provider: "gemini", images };
+      } catch (err) {
+        console.warn("[Gemini] reference enhancement failed, falling back", err);
+      }
     }
   }
 
